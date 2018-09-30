@@ -7,7 +7,99 @@ from PySide2 import QtWidgets, QtCore, QtGui
 #selection to a variable
 
 
+import maya.cmds as cmds
 
+
+rig_jnt_list = [['Rig_shoulder', [1.0, 0, 0]], ['Rig_elbow', [3.0, 0, -1.0]], ['Rig_wrist', [5.0, 0, 0]],
+                ['Rig_wristEnd', [6.0, 0, 0.0]]]
+ik_jnt_list = [['Ik_shoulder', [1.0, 0, 0]], ['Ik_elbow', [3.0, 0, -1.0]], ['Ik_wrist', [5.0, 0, 0]],
+               ['Ik_wristEnd', [6.0, 0, 0]]]
+fk_jnt_list = [['Fk_shoulder', [1.0, 0, 0]], ['Fk_elbow', [3.0, 0, -1.0]], ['Fk_wrist', [5.0, 0, 0]],
+               ['Fk_wristEnd', [6.0, 0, 0]]]
+
+
+
+class Rig_Arm:
+
+    def rig_arm(self):
+        # create left rig, ik, fk joints
+        self.create_joint(rig_jnt_list)
+        cmds.select(d=True)
+        self.create_joint(ik_jnt_list)
+        cmds.select(d=True)
+        self.create_joint(fk_jnt_list)
+        cmds.select(d=True)
+
+        # create Ik Rig
+        # ik handle
+        ikh = cmds.ikHandle(n='L_arm_Ikh', sj='L_Ik_shoulder', ee='L_Ik_wrist', sol='ikRPsolver', p=2, w=1)
+
+        ik_ctl_info = [[ik_jnt_list[2][1], 'L_Ik_arm_Ctl', 'L_Ik_arm_Ctl_Grp']]
+        self.create_control(ik_ctl_info)
+
+        pvpos = self.calculatePVPosition([ik_jnt_list[0][0], [ik_jnt_list[1][0], [ik_jnt_list[2][0])
+        pvctlinfo = [[pvpos, 'pv_arm_Ctl', 'ik_arm_Ctl']]
+        self.create_control(pvctlinfo)
+
+        #parent ik handle to ctl
+        cmds.parent('L_arm_ikh', 'L_Ik_arm_Ctl')
+        #PV Constraint
+        cmds.poleVectorConstraint(pvctlinfo[0][1], ikh[0])
+        # orient constraint to arm ik_wrist to arm_Ctl
+        cmds.orientConstraint(pvctlinfo[0][1], ikh[0])
+
+        # create FK rig
+        fk_ctl_info = [[fk_jnt_list[0][1], 'L_Fk_shoulder_Ctl', 'L_Fk_shoulder_Ctl_Grp'],
+                       [fk_jnt_list[1][1], 'Fk_elbow_Ctl', 'Fk_elbow_Ctl_Grp'],
+                       [fk_jnt_list[2][1], 'Fk_wrist_Ctl', 'Fk_wrist_Ctl_Grp']]
+
+        self.create_control(fk_ctl_info)
+
+        #parent fk controls
+        cmds.parent(fk_ctl_info[1][2], fk_ctl_info[0][1])
+        cmds.parent(fk_ctl_info[2][2], fk_ctl_info[1][1])
+
+
+    def create_joint(self, jntinfo):
+        for item in jntinfo:
+            cmds.joint(n='L_' + item[0], p=item[1], radius=1)
+
+
+    def create_control(self, ctlinfo):
+        for info in ctlinfo:
+            # create ik control
+            # get the ws=worldspace position of wrist joint
+            pos = info[0]
+            # create an empty group
+            ctlgrp = cmds.group(em=True, name=info[2])
+            # create circle control
+            ctl = cmds.circle(n='L_' + info[1], nr=(0, 0, 1), c=(0, 0, 0), r=0.35)
+            # parent the ctl to the group
+            cmds.parent(ctl, ctlgrp)
+            # move the group to the object
+            cmds.xform(ctlgrp, t=pos, ws=True)
+
+
+    def calculatePVPosition(self, jnts):
+        from maya import cmds, OpenMaya
+        start = cmds.xform(jnts[0], q=True, ws=True, t=True)
+        mid = cmds.xform(jnts[1], q=True, ws=True, t=True)
+        end = cmds.xform(jnts[2], q=True, ws=True, t=True)
+        startV = OpenMaya.MVector(start[0], start[1], start[2])
+        midV = OpenMaya.MVector(mid[0], mid[1], mid[2])
+        endV = OpenMaya.MVector(end[0], end[1], end[2])
+        startEnd = endV - startV
+        startMid = midV - startV
+        dotP = startMid * startEnd
+        proj = float(dotP) / float(startEnd.length())
+        startEndN = startEnd.normal()
+        projV = startEndN * proj
+        arrowV = startMid - projV
+        arrowV *= 0.5
+        finalV = arrowV + midV
+        return ([finalV.x, finalV.y, finalV.z])
+
+"""
 def L_bind_arm(self):
 
     l_arm_sel = cmds.ls(selection=True)
@@ -323,3 +415,4 @@ def connect_ikfk():
 
     #get the ik fk switch group to follow the bind wrist
     cmds.parentConstraint('L_wrist_jnt', ik_fk_grp)
+"""

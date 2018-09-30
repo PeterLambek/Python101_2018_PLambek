@@ -1,35 +1,40 @@
 import maya.cmds as cmds
 
 
-def createJoint():
-    # create joints and name em
-    #
-    jnt_list = {'LJNTS': [['shoulder_jnt', [1.0, 0, 0]], ['elbow_jnt', [3.0, 0, -1.0]], ['wrist_jnt', [5.0, 0, 0]], ['wristEnd_jnt', [6.0, 0, 0.0]]],
-                'RJNTS': [['shoulder_jnt', [-1.0, 0, 0]], ['elbow_jnt', [-3.0, 0, -1.0]], ['wrist_jnt', [-5.0, 0, 0]],['wristEnd_jnt', [-6.0, 0, 0]]]}
-    # set the definition for the joints
-    arm_list = ['Rig_', 'Ik_', 'Fk_']
+# create joints and name em
+#
+l_rig_jnt_list = [['Rig_shoulder_jnt', [1.0, 0, 0]], ['Rig_elbow_jnt', [3.0, 0, -1.0]], ['Rig_wrist_jnt', [5.0, 0, 0]], ['Rig_wristEnd_jnt', [6.0, 0, 0.0]]]
+l_ik_rig_list = [['Ik_shoulder_jnt', [1.0, 0, 0]], ['Ik_elbow_jnt', [3.0, 0, -1.0]], ['Ik_wrist_jnt', [5.0, 0, 0]],['Ik_wristEnd_jnt', [6.0, 0, 0]]]
+l_fk_rig_list = [['Fk_shoulder_jnt', [1.0, 0, 0]], ['Fk_elbow_jnt', [3.0, 0, -1.0]], ['Fk_wrist_jnt', [5.0, 0, 0]],['Fk_wristEnd_jnt', [6.0, 0, 0]]]
 
-    # left side joint setup
-    # 
+r_rig_jnt_list = [['Rig_shoulder_jnt', [-1.0, 0, 0]], ['Rig_elbow_jnt', [-3.0, 0, -1.0]], ['Rig_wrist_jnt', [-5.0, 0, 0]], ['Rig_wristEnd_jnt', [-6.0, 0, 0.0]]]
+r_ik_rig_list = [['Ik_shoulder_jnt', [-1.0, 0, 0]], ['Ik_elbow_jnt', [-3.0, 0, -1.0]], ['Ik_wrist_jnt', [-5.0, 0, 0]],['Ik_wristEnd_jnt', [-6.0, 0, 0]]]
+r_fk_rig_list = [['Fk_shoulder_jnt', [-1.0, 0, 0]], ['Fk_elbow_jnt', [-3.0, 0, -1.0]], ['Fk_wrist_jnt', [-5.0, 0, 0]],['Fk_wristEnd_jnt', [-6.0, 0, 0]]]
+# left side joint setup
 
-    for item in arm_list:
-        for jnt in jnt_list['LJNTS']:
-            jnt_name = 'L_' + item + jnt[0]
-            cmds.joint(n=jnt_name, p=jnt[1], radius=1)
 
-        cmds.select(d=True)
+def lcreatejoint(jntlist):
+    for item in jntlist:
+        jnt_name = 'L_' + item
+        cmds.joint(n=jnt_name, p=item[1], radius=1)
 
+def rcreatejoint(jntlist):
     # right side joint setup
 
-    for item in arm_list:
-        for jnt in jnt_list['RJNTS']:
-            jnt_name = 'R_' + item + jnt[0]
-            cmds.joint(n=jnt_name, p=jnt[1], radius=1)
+    for item in jntlist:
+        jnt_name = 'R_' + item
+        cmds.joint(n=jnt_name, p=item[1], radius=1)
 
-        cmds.select(d=True)
 
-createJoint()
+lcreatejoint(l_rig_jnt_list)
+cmds.select(d=True)
+lcreatejoint(l_ik_rig_list)
+cmds.select(d=True)
+lcreatejoint(l_fk_rig_list)
+cmds.select(d=True)
 
+
+"""
 def create_ik():
 
 
@@ -229,4 +234,4 @@ def combine_ik_fk():
     cmds.connectAttr('L_ikFkVisibility_Cnd.outColorR', 'L_Fk_shoulder_jnt.visibility')
 
 combine_ik_fk()
-
+"""
