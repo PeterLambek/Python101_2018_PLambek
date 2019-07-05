@@ -1,0 +1,960 @@
+import maya.cmds as cmds
+import os
+import json
+from PySide2 import QtWidgets, QtCore, QtGui
+
+
+# create first the joints - shoulder, knee, wrist, wristEnd (no need for naming)
+# selection to a variable
+
+L_Leg_Setup=l_leg_setup()
+L_Leg_Setup.L_bind_leg()
+
+L_Leg_Setup=l_leg_setup()
+L_Leg_Setup.L_ik_leg()
+
+L_Leg_Setup=l_leg_setup()
+L_Leg_Setup.L_fk_leg()
+
+L_Leg_Setup=l_leg_setup()
+L_Leg_Setup.L_connectIk_leg()
+
+class utillity():
+
+    def create_space_groups(self, name=None):
+
+        """
+        creates space groups if not already in the scene
+        :param name: group name
+        :type name: str
+        """
+
+        if cmds.objExists(name):
+            return
+        else:
+            cmds.group(empty=True, name=name)
+
+
+class l_leg_setup():
+
+    def __init__(self):
+        self.util = utillity()
+
+    def L_bind_leg(self):
+        # select 5 joints, femur, knee, ankle, ball, toeEnd in that order
+        l_leg_sel = cmds.ls(selection=True)
+        # make sure the selection is 5 by using the len() command
+        if len(l_leg_sel) == 5:
+            # rename the selected joints
+            femur = cmds.rename(l_leg_sel[0], 'L_femur_jnt')
+            knee = cmds.rename(l_leg_sel[1], 'L_knee_jnt')
+            ankle = cmds.rename(l_leg_sel[2], 'L_ankle_jnt')
+            ball = cmds.rename(l_leg_sel[3], 'L_ball_jnt')
+            toe = cmds.rename(l_leg_sel[4], 'L_toe_jnt')
+            # joint orient the joints
+            cmds.select(femur)
+            cmds.joint(e=True, oj='xyz', sao='zdown', ch=True, zso=True)
+        else:
+            print "select 5 joints - femur, knee, ankle, ball, toeEnd"
+            return
+            
+        # place them in the group hierarchy if there is one
+        placeInGroup = cmds.ls('main_Grp')
+    
+        # if it is there parent them respectly
+        if placeInGroup:
+            cmds.parent('L_femur_jnt', 'skeleton_Grp')
+        else:
+            return
+            
+            
+    def R_leg_mirror(self):
+    
+        #easy mirror tool
+        #should make it more correct, so you would not mirror it but set the orientation correct in case you dont have the
+        r_leg_sel = cmds.ls(selection=True)
+        cmds.mirrorJoint('L_femur_jnt', mirrorYZ=True, mirrorBehavior=True, searchReplace=("L_", "R_"))
+      
+
+    def L_ik_leg(self):
+        # create the Ik arm by duplicating
+        ik_leg = cmds.duplicate('L_femur_jnt', rc=True)
+
+        cmds.listRelatives(ik_leg, ad=True)
+
+        ik_femur = cmds.rename(ik_leg[0], 'L_Ik_femur_jnt')
+        ik_knee = cmds.rename(ik_leg[1], 'L_Ik_knee_jnt')
+        ik_ankle = cmds.rename(ik_leg[2], 'L_Ik_ankle_jnt')
+        ik_ball = cmds.rename(ik_leg[3], 'L_Ik_ball_jnt')
+        ik_toe = cmds.rename(ik_leg[4], 'L_Ik_toe_jnt')
+        # create Ik Rig
+        # create Rotate ikHandle between the femur and ankle
+        ik_hdl_femur = cmds.ikHandle(n='L_femurAnkle_Ikh', sj=ik_femur, ee=ik_ankle, sol='ikRPsolver', p=2, w=1)
+        # create Single ikHandle between the ankle and ball
+        ik_hdl_ball = cmds.ikHandle(n='L_ankleBall_Ikh', sj=ik_ankle, ee=ik_ball, sol='ikSCsolver', p=2, w=1)
+        # create Single ikHandle between the ball and toe
+        ik_hdl_toe = cmds.ikHandle(n='L_ballToe_Ikh', sj=ik_ball, ee=ik_toe, sol='ikSCsolver', p=2, w=1)
+        # find the worldspace ws translate position of the wrist
+        pos_trans_ankle_ik = cmds.xform(ik_ankle, q=True, t=True, ws=True)
+        pos_trans_ball_ik = cmds.xform(ik_ball, q=True, t=True, ws=True)
+        pos_trans_toe_ik = cmds.xform(ik_toe, q=True, t=True, ws=True)
+        # find the worldspace ws orientation position of the wrist
+        pos_orient_ankle_ik = cmds.xform(ik_ankle, q=True, ro=True, ws=True)
+        pos_orient_ball_ik = cmds.xform(ik_ball, q=True, ro=True, ws=True)
+        pos_orient_toe_ik = cmds.xform(ik_toe, q=True, ro=True, ws=True)
+        # create the empty group
+        ik_grp = cmds.group(em=True, n='L_Ik_foot_Grp')
+        # create the empty extra Null group
+        ik_Null = cmds.group(em=True, n='L_Ik_foot_Null')
+        # parent the null to the group
+        cmds.parent('L_Ik_foot_Null', 'L_Ik_foot_Grp')
+        # create the control
+        ik_foot_ctl = cmds.circle(n='L_Ik_foot_Ctl', nr=(0, 0, 1), c=(0, 0, 0), r=1.0)
+        ik_offset_foot_ctl = cmds.circle(n='L_Ik_offsetFoot_Ctl', nr=(0, 0, 1), c=(0, 0, 0), r=1.25)
+        # parent the control to the group
+        cmds.parent('L_Ik_offsetFoot_Ctl', 'L_Ik_foot_Ctl')
+        cmds.parent('L_Ik_foot_Ctl', 'L_Ik_foot_Null')
+        # change rotation order for offset control
+        cmds.setAttr("L_Ik_foot_Ctl.rotateOrder", k=True, lock=True)
+        cmds.setAttr("L_Ik_offsetFoot_Ctl.rotateOrder", 2)
+        cmds.setAttr("L_Ik_offsetFoot_Ctl.rotateOrder", k=True, lock=True)
+        # move the group to the wrist
+        cmds.xform(ik_grp, t=pos_trans_ankle_ik, ws=True)
+        # orient the group to the wrist
+        cmds.rotate(-90, -90, -90, 'L_Ik_foot_Grp', relative=True)
+        cmds.rotate(90, 90, 0, 'L_Ik_foot_Ctl', relative=True)
+        # freeze ik ctl's
+        cmds.makeIdentity('L_Ik_foot_Ctl', r=True, a=True)
+        # clear history of the control's
+        cmds.delete('L_Ik_foot_Ctl', ch=True)
+        # move the group to the wrist
+        cmds.xform(ik_grp, t=pos_trans_ankle_ik, ws=True)
+        # create groups for the ikhandles
+        peel_heel_grp = cmds.group(em=True, n="L_peelheel_Grp")
+        toe_tap_grp = cmds.group(em=True, n="L_toeTap_Grp")
+        toe_tap_footRoll_grp = cmds.group(em=True, n="L_toeTap_footRoll_ball_Grp")
+        stand_tip_grp = cmds.group(em=True, n="L_standTip_Grp")
+        stand_tip_footRoll_grp = cmds.group(em=True, n="L_standTip_footRoll_Toe_Grp")
+        heel_pivot_grp = cmds.group(em=True, n="L_heelPivot_Grp")
+        heel_pivot_footRoll_grp = cmds.group(em=True, n="L_heelPivot_footRoll_heel_Grp")
+        twist_heel_grp = cmds.group(em=True, n="L_twistHeel_Grp")
+        twist_ball_grp = cmds.group(em=True, n="L_twistBall_Grp")
+        twist_toe_grp = cmds.group(em=True, n="L_twistToe_Grp")
+        left_bank_grp = cmds.group(em=True, n="L_leftBank_Grp")
+        right_bank_grp = cmds.group(em=True, n="L_rightBank_Grp")
+        foot_attr_grp = cmds.group(em=True, n="L_footAttr_Grp")
+        gimbal_grp = cmds.group(em=True, n="L_foot_gimbal_Grp")
+        zeroOut_grp = cmds.group(em=True, n="L_foot_zero_Grp")
+        # place the groups
+        cmds.xform(peel_heel_grp, t=pos_trans_ball_ik, ws=True)
+        cmds.xform(toe_tap_grp, t=pos_trans_ball_ik, ws=True)
+        cmds.xform(stand_tip_grp, t=pos_trans_toe_ik, ws=True)
+        cmds.xform(heel_pivot_grp, t=pos_trans_ankle_ik, ws=True)
+        cmds.xform(toe_tap_footRoll_grp, t=pos_trans_ball_ik, ws=True)
+        cmds.xform(stand_tip_footRoll_grp, t=pos_trans_toe_ik, ws=True)
+        cmds.xform(heel_pivot_footRoll_grp, t=pos_trans_ankle_ik, ws=True)
+        cmds.xform(twist_heel_grp, t=pos_trans_ankle_ik, ws=True)
+        cmds.xform(twist_ball_grp, t=pos_trans_ball_ik, ws=True)
+        cmds.xform(twist_toe_grp, t=pos_trans_toe_ik, ws=True)
+        cmds.xform(left_bank_grp, t=pos_trans_ball_ik, ws=True)
+        cmds.xform(right_bank_grp, t=pos_trans_ball_ik, ws=True)
+        cmds.xform(foot_attr_grp, t=pos_trans_ball_ik, ws=True)
+        cmds.xform(gimbal_grp, t=pos_trans_ankle_ik, ws=True)
+        cmds.xform(zeroOut_grp, t=pos_trans_ankle_ik, ws=True)
+        # parent the groups together to make the correct movement
+        cmds.parent(toe_tap_grp, stand_tip_grp)
+        cmds.parent(toe_tap_footRoll_grp, stand_tip_grp)
+        cmds.parent(peel_heel_grp, toe_tap_footRoll_grp)
+        cmds.parent(stand_tip_grp, stand_tip_footRoll_grp)
+        cmds.parent(stand_tip_footRoll_grp, heel_pivot_grp)
+        cmds.parent(heel_pivot_grp, heel_pivot_footRoll_grp)
+        cmds.parent(heel_pivot_footRoll_grp, twist_heel_grp)
+        cmds.parent(twist_heel_grp, twist_ball_grp)
+        cmds.parent(twist_ball_grp, twist_toe_grp)
+        cmds.parent(twist_toe_grp, left_bank_grp)
+        cmds.parent(left_bank_grp, right_bank_grp)
+        cmds.parent(right_bank_grp, foot_attr_grp)
+        cmds.parent(foot_attr_grp, gimbal_grp)
+        cmds.parent(gimbal_grp, zeroOut_grp)
+        # parent the ikhandles to the groups
+        cmds.parent('L_femurAnkle_Ikh', peel_heel_grp)
+        cmds.parent('L_ankleBall_Ikh', toe_tap_grp)
+        cmds.parent('L_ballToe_Ikh', toe_tap_grp)
+        # parent the Ikhandle GROUP to the controller
+        cmds.parent("L_foot_zero_Grp", "L_Ik_offsetFoot_Ctl")
+        # create the attributes for the foot control
+        cmds.setAttr('L_Ik_foot_Ctl.visibility', e=True, k=False)
+        cmds.setAttr('L_Ik_foot_Ctl.scaleX', e=True, k=False, lock=True)
+        cmds.setAttr('L_Ik_foot_Ctl.scaleY', e=True, k=False, lock=True)
+        cmds.setAttr('L_Ik_foot_Ctl.scaleZ', e=True, k=False, lock=True)
+        # add gimbal X and set the gimbal attr keyable and editable
+        cmds.addAttr('L_Ik_foot_Ctl', ln="gimbalX", at="double", dv=0)
+        cmds.setAttr('L_Ik_foot_Ctl.gimbalX', e=True, k=True)
+        # add gimbal Y
+        cmds.addAttr('L_Ik_foot_Ctl', ln="gimbalY", at="double", dv=0)
+        cmds.setAttr('L_Ik_foot_Ctl.gimbalY', e=True, k=True)
+        # add gimbal Z
+        cmds.addAttr('L_Ik_foot_Ctl', ln="gimbalZ", at="double", dv=0)
+        cmds.setAttr('L_Ik_foot_Ctl.gimbalZ', e=True, k=True)
+        # break __ ___________
+        cmds.addAttr('L_Ik_foot_Ctl', ln='seperator1', nn='__', at='enum', en='__________')
+        cmds.setAttr('L_Ik_foot_Ctl.seperator1', e=True, k=True, lock=True)
+        # PoleVector control
+        cmds.addAttr('L_Ik_foot_Ctl', ln='pvControl', at='enum', en='off:on')
+        cmds.setAttr('L_Ik_foot_Ctl.pvControl', e=True, k=True)
+        # Leg twist
+        cmds.addAttr('L_Ik_foot_Ctl', ln='legTwist', at='double', dv=0)
+        cmds.setAttr('L_Ik_foot_Ctl.legTwist', e=True, k=True)
+        # offset vis
+        cmds.addAttr('L_Ik_foot_Ctl', ln='offsetVis', at='enum', en='off:on')
+        cmds.setAttr('L_Ik_foot_Ctl.offsetVis', e=True, k=True)
+        # break __ ___________
+        cmds.addAttr('L_Ik_foot_Ctl', ln='seperator2', nn='__', at='enum', en='__________')
+        cmds.setAttr('L_Ik_foot_Ctl.seperator2', e=True, k=True, lock=True)
+        # foot follow
+        cmds.addAttr('L_Ik_foot_Ctl', ln='footFollow', at='enum', en='hip:cog:world')
+        cmds.setAttr('L_Ik_foot_Ctl.footFollow', e=True, k=True)
+        # break __ ___________
+        cmds.addAttr('L_Ik_foot_Ctl', ln='seperator3', nn='__', at='enum', en='__________')
+        cmds.setAttr('L_Ik_foot_Ctl.seperator3', e=True, k=True, lock=True)
+        # foot roll, Toe break, Toe straight
+        cmds.addAttr('L_Ik_foot_Ctl', ln='footRoll', at='double', dv=0)
+        cmds.addAttr('L_Ik_foot_Ctl', ln='toeBreak', at='double', dv=20)
+        cmds.addAttr('L_Ik_foot_Ctl', ln='toeStraight', at='double', dv=70)
+        cmds.setAttr('L_Ik_foot_Ctl.footRoll', e=True, k=True)
+        cmds.setAttr('L_Ik_foot_Ctl.toeBreak', e=True, k=True)
+        cmds.setAttr('L_Ik_foot_Ctl.toeStraight', e=True, k=True)
+        # break __ ___________
+        cmds.addAttr('L_Ik_foot_Ctl', ln='seperator4', nn='__', at='enum', en='__________')
+        cmds.setAttr('L_Ik_foot_Ctl.seperator4', e=True, k=True, lock=True)
+        # Heel up / heel rotate up/down
+        cmds.addAttr('L_Ik_foot_Ctl', ln='heelPivot', at='double', min=-10, max=10, dv=0)
+        cmds.setAttr('L_Ik_foot_Ctl.heelPivot', e=True, k=True)
+        # Peel heel / heel up
+        cmds.addAttr('L_Ik_foot_Ctl', ln='heelUp', at='double', min=-10, max=10, dv=0)
+        cmds.setAttr('L_Ik_foot_Ctl.heelUp', e=True, k=True)
+        # Stand Tip
+        cmds.addAttr('L_Ik_foot_Ctl', ln='standTip', at='double', min=-10, max=10, dv=0)
+        cmds.setAttr('L_Ik_foot_Ctl.standTip', e=True, k=True)
+        # Toe Tap
+        cmds.addAttr('L_Ik_foot_Ctl', ln='toeTap', at='double', min=-10, max=10, dv=0)
+        cmds.setAttr('L_Ik_foot_Ctl.toeTap', e=True, k=True)
+        # Foot Bank
+        cmds.addAttr('L_Ik_foot_Ctl', ln='footBank', at='double', min=-10, max=10, dv=0)
+        cmds.setAttr('L_Ik_foot_Ctl.footBank', e=True, k=True)
+        # Twist Heel
+        cmds.addAttr('L_Ik_foot_Ctl', ln='twistHeel', at='double', min=-10, max=10, dv=0)
+        cmds.setAttr('L_Ik_foot_Ctl.twistHeel', e=True, k=True)
+        # Twist Ball
+        cmds.addAttr('L_Ik_foot_Ctl', ln='twistBall', at='double', min=-10, max=10, dv=0)
+        cmds.setAttr('L_Ik_foot_Ctl.twistBall', e=True, k=True)
+        # Twist Toe
+        cmds.addAttr('L_Ik_foot_Ctl', ln='twistToe', at='double', min=-10, max=10, dv=0)
+        cmds.setAttr('L_Ik_foot_Ctl.twistToe', e=True, k=True)
+        # create the Nodes for connecting all the attributes to the control
+        # Nodes for foot roll - multiplyDivide and Clamp node
+        # Nodes for the space switch
+        cmds.shadingNode('condition', n='L_Ik_footSpace_world_Cnd', au=True)
+        cmds.shadingNode('condition', n='L_Ik_footSpace_hip_Cnd', au=True)
+        cmds.shadingNode('condition', n='L_Ik_footSpace_cog_Cnd', au=True)
+        cmds.setAttr('L_Ik_footSpace_world_Cnd.colorIfFalseR', 0)
+        cmds.setAttr('L_Ik_footSpace_hip_Cnd.colorIfFalseR', 0)
+        cmds.setAttr('L_Ik_footSpace_cog_Cnd.colorIfFalseR', 0)
+        cmds.setAttr('L_Ik_footSpace_world_Cnd.colorIfTrueR', 1)
+        cmds.setAttr('L_Ik_footSpace_hip_Cnd.colorIfTrueR', 1)
+        cmds.setAttr('L_Ik_footSpace_cog_Cnd.colorIfTrueR', 1)
+        cmds.setAttr('L_Ik_footSpace_world_Cnd.secondTerm', 2)
+        cmds.setAttr('L_Ik_footSpace_hip_Cnd.secondTerm', 1)
+        cmds.setAttr('L_Ik_footSpace_cog_Cnd.secondTerm', 0)
+        # heel
+        cmds.shadingNode('condition', n='L_heelRevFoot_Cnd', au=True)
+        cmds.setAttr('L_heelRevFoot_Cnd.operation', 4)
+        cmds.setAttr('L_heelRevFoot_Cnd.colorIfFalseR', 0)
+        # ball
+        cmds.shadingNode('setRange', n='L_ballRevFoot_Sr', au=True)
+        cmds.shadingNode('plusMinusAverage', n='L_ballRevFoot_Pma', au=True)
+        cmds.setAttr('L_ballRevFoot_Pma.operation', 2)
+        cmds.setAttr('L_ballRevFoot_Pma.input1D[0]', 1)
+        cmds.shadingNode('condition', n='L_ballRevFoot_Cnd', au=True)
+        cmds.shadingNode('multiplyDivide', n='L_ballRevFoot_footRoll_Md', au=True)
+        cmds.setAttr('L_ballRevFoot_footRoll_Md.operation', 1)
+        cmds.setAttr('L_ballRevFoot_Cnd.operation', 2)
+        cmds.setAttr('L_ballRevFoot_Cnd.colorIfFalseR', 0)
+        # toe
+        cmds.shadingNode('setRange', n='L_tipRevFoot_Sr', au=True)
+        cmds.shadingNode('multiplyDivide', n='L_tipRoll_footRoll_Md', au=True)
+        # Nodes for Heel up - multiplyDivide and Clamp node
+        cmds.shadingNode('multiplyDivide', n='L_heelUp_Md', au=True, )
+        cmds.shadingNode('clamp', n='L_heelUp_Clp', au=True)
+        cmds.setAttr('L_heelUp_Md.input2X', 5)
+        cmds.setAttr('L_heelUp_Clp.minR', -50)
+        cmds.setAttr('L_heelUp_Clp.maxR', 50)
+        # nodes for peel heel - multiplyDivide and Clamp node
+        cmds.shadingNode('multiplyDivide', n='L_peelHeel_Md', au=True, )
+        cmds.shadingNode('clamp', n='L_peelHeel_Clp', au=True)
+        cmds.setAttr('L_peelHeel_Md.input2X', 9)
+        cmds.setAttr('L_peelHeel_Clp.minR', -90)
+        cmds.setAttr('L_peelHeel_Clp.maxR', 90)
+        # node for stand tip - multiplyDivide and Clamp node
+        cmds.shadingNode('multiplyDivide', n='L_standTip_Md', au=True, )
+        cmds.shadingNode('clamp', n='L_standTip_Clp', au=True)
+        cmds.setAttr('L_standTip_Md.input2X', 9)
+        cmds.setAttr('L_standTip_Clp.minR', -120)
+        cmds.setAttr('L_standTip_Clp.maxR', 90)
+        # nodes for toe tap - multiplyDivide and Clamp node
+        cmds.shadingNode('multiplyDivide', n='L_toeTap_Md', au=True, )
+        cmds.shadingNode('clamp', n='L_toeTap_Clp', au=True)
+        cmds.setAttr('L_toeTap_Md.input2X', 9)
+        cmds.setAttr('L_toeTap_Clp.minR', -90)
+        cmds.setAttr('L_toeTap_Clp.maxR', 90)
+        # nodes for foot bank - multiplyDivide and Clamp node
+        cmds.shadingNode('multiplyDivide', n='L_footBank_Md', au=True, )
+        cmds.shadingNode('clamp', n='L_leftFootBank_Clp', au=True)
+        cmds.shadingNode('clamp', n='L_rightFootBank_Clp', au=True)
+        cmds.setAttr('L_footBank_Md.input2X', 9)
+        cmds.setAttr('L_footBank_Md.input2Y', 9)
+        cmds.setAttr('L_leftFootBank_Clp.minR', -90)
+        cmds.setAttr('L_rightFootBank_Clp.maxR', 90)
+        # nodes for twist heel - multiplyDivide and Clamp node
+        cmds.shadingNode('multiplyDivide', n='L_twistHeel_Md', au=True, )
+        cmds.shadingNode('clamp', n='L_twistHeel_Clp', au=True)
+        cmds.setAttr('L_toeTap_Md.input2X', 9)
+        cmds.setAttr('L_twistHeel_Clp.minR', -90)
+        cmds.setAttr('L_twistHeel_Clp.maxR', 90)
+        # nodes for twist ball - multiplyDivide and Clamp node
+        cmds.shadingNode('multiplyDivide', n='L_twistBall_Md', au=True, )
+        cmds.shadingNode('clamp', n='L_twistBall_Clp', au=True)
+        cmds.setAttr('L_twistBall_Md.input2X', 9)
+        cmds.setAttr('L_twistBall_Clp.minR', -90)
+        cmds.setAttr('L_twistBall_Clp.maxR', 90)
+        # nodes for twist toe - multiplyDivide and Clamp node
+        cmds.shadingNode('multiplyDivide', n='L_twistToe_Md', au=True, )
+        cmds.shadingNode('clamp', n='L_twistToe_Clp', au=True)
+        cmds.setAttr('L_twistToe_Md.input2X', 9)
+        cmds.setAttr('L_twistToe_Clp.minR', -90)
+        cmds.setAttr('L_twistToe_Clp.maxR', 90)
+        # Connecting the nodes to the groups, and connecting groups
+        # Gimbal
+        cmds.connectAttr('L_Ik_foot_Ctl.gimbalX', 'L_foot_gimbal_Grp.rotateX')
+        cmds.connectAttr('L_Ik_foot_Ctl.gimbalY', 'L_foot_gimbal_Grp.rotateY')
+        cmds.connectAttr('L_Ik_foot_Ctl.gimbalZ', 'L_foot_gimbal_Grp.rotateZ')
+        # PV control - leg twist
+        cmds.connectAttr('L_Ik_foot_Ctl.legTwist', 'L_femurAnkle_Ikh.twist')
+        # offset visibility
+        cmds.connectAttr('L_Ik_foot_Ctl.offsetVis', 'L_Ik_offsetFoot_Ctl.lodVisibility')
+        #setRange
+        cmds.setAttr("L_tipRevFoot_Sr.maxX", 1)
+        cmds.setAttr("L_ballRevFoot_Sr.maxX", 1)
+        # foot follow - create groups if not already created and parent them under
+        # the skeletons joints
+        # create groups
+        self.util.create_space_groups(name="hip_Spa")
+        self.util.create_space_groups(name="cog_Spa")
+        self.util.create_space_groups(name="world_Spa")
+        # move groups to the joints or controls, first get the position(xform)
+        pelvis_space = cmds.xform('C_pelvis_jnt', query=True, translation=True, worldSpace=True)
+        root_space = cmds.xform('C_root', query=True, translation=True, worldSpace=True)
+        #
+        cmds.xform("hip_Spa", t=pelvis_space, worldSpace=True)
+        cmds.xform("cog_Spa", t=root_space, worldSpace=True)
+        # parent the group to the nodes
+        cmds.parent("hip_Spa", 'C_pelvis_jnt')
+        cmds.parent("cog_Spa", 'C_root')
+        # parentConstraint and setup nodes for switching between the space's
+        cmds.parentConstraint('hip_Spa', "cog_Spa", "world_Spa", "L_Ik_foot_Null", maintainOffset=True)
+        # combine ctl to nodes
+        cmds.connectAttr('L_Ik_foot_Ctl.footFollow', 'L_Ik_footSpace_world_Cnd.firstTerm')
+        cmds.connectAttr('L_Ik_foot_Ctl.footFollow', 'L_Ik_footSpace_hip_Cnd.firstTerm')
+        cmds.connectAttr('L_Ik_foot_Ctl.footFollow', 'L_Ik_footSpace_cog_Cnd.firstTerm')
+        cmds.connectAttr('L_Ik_footSpace_world_Cnd.outColorR', "L_Ik_foot_Null_parentConstraint1.world_SpaW2")
+        cmds.connectAttr('L_Ik_footSpace_hip_Cnd.outColorR', "L_Ik_foot_Null_parentConstraint1.cog_SpaW1")
+        cmds.connectAttr('L_Ik_footSpace_cog_Cnd.outColorR', "L_Ik_foot_Null_parentConstraint1.hip_SpaW0")
+        # Connect footRoll control to nodes
+        # First string - Heel 
+        cmds.connectAttr('L_Ik_foot_Ctl.footRoll', 'L_heelRevFoot_Cnd.colorIfTrueR')
+        cmds.connectAttr('L_Ik_foot_Ctl.footRoll', 'L_heelRevFoot_Cnd.firstTerm')
+        cmds.connectAttr('L_heelRevFoot_Cnd.outColorR', 'L_heelPivot_footRoll_heel_Grp.rotateX')
+        # Second string - Ball
+        cmds.connectAttr('L_Ik_foot_Ctl.footRoll', 'L_ballRevFoot_Sr.valueX')
+        cmds.connectAttr('L_Ik_foot_Ctl.footRoll', 'L_ballRevFoot_Cnd.colorIfTrueR')
+        cmds.connectAttr('L_Ik_foot_Ctl.footRoll', 'L_ballRevFoot_Cnd.firstTerm')
+        cmds.connectAttr('L_Ik_foot_Ctl.toeStraight', 'L_ballRevFoot_Sr.oldMaxX')
+        cmds.connectAttr('L_Ik_foot_Ctl.toeBreak', 'L_ballRevFoot_Sr.oldMinX')
+        cmds.connectAttr('L_ballRevFoot_Sr.outValueX', 'L_ballRevFoot_Pma.input1D[1]')
+        cmds.connectAttr('L_ballRevFoot_Pma.output1D', 'L_ballRevFoot_footRoll_Md.input2X') 
+        cmds.connectAttr('L_ballRevFoot_Cnd.outColorR', 'L_ballRevFoot_footRoll_Md.input1X') 
+        cmds.connectAttr('L_ballRevFoot_footRoll_Md.outputX', 'L_toeTap_footRoll_ball_Grp.rotateX')
+        # Third string - Toe
+        cmds.connectAttr('L_Ik_foot_Ctl.footRoll', 'L_tipRevFoot_Sr.valueX')
+        cmds.connectAttr('L_Ik_foot_Ctl.footRoll', 'L_tipRoll_footRoll_Md.input1X')
+        cmds.connectAttr('L_Ik_foot_Ctl.toeBreak', 'L_tipRevFoot_Sr.oldMinX')
+        cmds.connectAttr('L_Ik_foot_Ctl.toeStraight', 'L_tipRevFoot_Sr.oldMaxX')
+        cmds.connectAttr('L_tipRevFoot_Sr.outValueX', 'L_tipRoll_footRoll_Md.input2X')
+        cmds.connectAttr('L_tipRoll_footRoll_Md.outputX', 'L_standTip_footRoll_Toe_Grp.rotateX')
+        
+        
+        
+         
+        # Create Pole vec
+
+        # getting controller to control the orient of the wrist
+        cmds.orientConstraint('L_Ik_foot_Ctl', 'L_Ik_ankle_jnt', mo=True)
+        # create a locator as a poleVector
+        pv_loc = cmds.spaceLocator(n='L_leg_poleVec_Loc')
+        # create a group as the group for a poleVector
+        pv_grp = cmds.group(em=True, n='L_leg_poleVec_Grp')
+        # parent locator to the group
+        cmds.parent('L_leg_poleVec_Loc', pv_grp)
+        # place the group between the shoulder and the wrist
+        cmds.pointConstraint('L_Ik_femur_jnt', 'L_Ik_ankle_jnt', pv_grp)
+        # aim the locator twoards the knee
+        cmds.aimConstraint('L_Ik_knee_jnt', pv_grp, aim=(1, 0, 0), u=(0, 1, 0))
+        # delete the constraints
+        cmds.delete('L_leg_poleVec_Grp_pointConstraint1')
+        cmds.delete('L_leg_poleVec_Grp_aimConstraint1')
+        # place the locater out from the knee using the X axis trans
+        cmds.move(5, pv_loc, z=True, a=True)
+        # create controller for the polevector
+        ik_knee_ctl = cmds.circle(n='L_Ik_knee_Ctl', nr=(0, 0, 1), c=(0, 0, 0), r=0.5)
+        # move parent the controller to the locator locatieon
+        cmds.pointConstraint(pv_loc, ik_knee_ctl)
+        # delete pointConstraint from controller
+        cmds.delete('L_Ik_knee_Ctl_pointConstraint1')
+        # parent controller to grp
+        cmds.parent('L_Ik_knee_Ctl', pv_grp)
+        # freeze orientation on controller
+        cmds.makeIdentity('L_Ik_knee_Ctl', a=True)
+        # delete history on ctl
+        cmds.delete('L_Ik_knee_Ctl', ch=True)
+        # parent poleVEc to controller
+        cmds.parent('L_leg_poleVec_Loc', 'L_Ik_knee_Ctl')
+        # connect the polevector constraint to the ikhandle and the locator
+        cmds.poleVectorConstraint(pv_loc, 'L_femurAnkle_Ikh')
+        # hide locator
+        cmds.hide(pv_loc)
+        # hide scale from ik control
+        cmds.setAttr('L_Ik_foot_Ctl.scaleX', keyable=False, ch=False, lock=True)
+        cmds.setAttr('L_Ik_foot_Ctl.scaleY', keyable=False, ch=False, lock=True)
+        cmds.setAttr('L_Ik_foot_Ctl.scaleZ', keyable=False, ch=False, lock=True)
+        cmds.setAttr('L_Ik_foot_Ctl.v', keyable=False, ch=False, lock=True)
+        # hide rotate and scale from knee ik control
+        cmds.setAttr('L_Ik_knee_Ctl.rotateX', keyable=False, ch=False, lock=True)
+        cmds.setAttr('L_Ik_knee_Ctl.rotateY', keyable=False, ch=False, lock=True)
+        cmds.setAttr('L_Ik_knee_Ctl.rotateZ', keyable=False, ch=False, lock=True)
+        cmds.setAttr('L_Ik_knee_Ctl.scaleX', keyable=False, ch=False, lock=True)
+        cmds.setAttr('L_Ik_knee_Ctl.scaleY', keyable=False, ch=False, lock=True)
+        cmds.setAttr('L_Ik_knee_Ctl.scaleZ', keyable=False, ch=False, lock=True)
+        cmds.setAttr('L_Ik_knee_Ctl.v', keyable=False, ch=False, lock=True)
+        # delete history on the ik control
+        cmds.delete('L_Ik_foot_Ctl', ch=True)
+        
+        # place them in the group hierarchy if there is one
+        placeInGroup = cmds.ls('main_Grp')
+        # if it is there parent them respectly
+        if placeInGroup:
+            cmds.parent('L_Ik_foot_Grp', 'L_Ik_Grp')
+            cmds.parent('L_leg_poleVec_Grp', 'L_Ik_Grp')    
+        else:
+            return 
+
+
+    def L_fk_leg(self):
+        # create the Fk arm by duplicating
+        fk_leg = cmds.duplicate('L_femur_jnt', renameChildren=True)
+
+        cmds.listRelatives(fk_leg, ad=True)
+
+        fkFemur = cmds.rename(fk_leg[0], 'L_Fk_femur_jnt')
+        fkKnee = cmds.rename(fk_leg[1], 'L_Fk_knee_jnt')
+        fkAnkle = cmds.rename(fk_leg[2], 'L_Fk_ankle_jnt')
+        fkBall = cmds.rename(fk_leg[3], 'L_Fk_ball_jnt')
+        fkToe = cmds.rename(fk_leg[4], 'L_Fk_toe_jnt')
+        # create Fk Rig
+        # find the worldposition ws translate position of shoulder, knee and wrist
+        posTransFemur = cmds.xform(fkFemur, query=True, translation=True, worldSpace=True)
+        posTransKnee = cmds.xform(fkKnee, query=True, translation=True, worldSpace=True)
+        posTransAnkle = cmds.xform(fkAnkle, q=True, translation=True, worldSpace=True)
+        posTransBall = cmds.xform(fkBall, query=True, translation=True, worldSpace=True)
+        # find the worldposition ws orient position of shoulder, knee and wrist
+        posOrientFemur = cmds.xform(fkFemur, query=True, rotation=True, worldSpace=True)
+        posOrientKnee = cmds.xform(fkKnee, query=True, rotation=True, worldSpace=True)
+        posOrientAnkle = cmds.xform(fkAnkle, query=True, rotation=True, worldSpace=True)
+        posOrientBall = cmds.xform(fkBall, query=True, rotation=True, worldSpace=True)
+        # create a group for each limb (3)
+        lFkFemurGrp = cmds.group(empty=True, n='L_Fk_femur_Grp')
+        lFkKneeGrp = cmds.group(empty=True, n='L_Fk_knee_Grp')
+        lFkAnkleGrp = cmds.group(empty=True, n='L_Fk_ankle_Grp')
+        lFkBallGrp = cmds.group(empty=True, n='L_Fk_ball_Grp')
+        # create a controller for each limb (3)
+        lFemurCtl = cmds.circle(n='L_Fk_femur_Ctl', normal=(0, 0, 1), center=(0, 0, 0), radius=0.5  )
+        lKneeCtl = cmds.circle(n='L_Fk_knee_Ctl', normal=(0, 0, 1), center=(0, 0, 0), radius=0.5 )
+        lAnkleCtl = cmds.circle(n='L_Fk_ankle_Ctl', normal=(0, 0, 1), center=(0, 0, 0), radius=0.5 )
+        lBallCtl = cmds.circle(n='L_Fk_ball_Ctl', normal=(0, 0, 1), center=(0, 0, 0), radius=0.5 )
+        # parent the controller to the groups
+        cmds.parent('L_Fk_femur_Ctl', lFkFemurGrp)
+        cmds.parent('L_Fk_knee_Ctl', lFkKneeGrp)
+        cmds.parent('L_Fk_ankle_Ctl', lFkAnkleGrp)
+        cmds.parent('L_Fk_ball_Ctl', lFkBallGrp)
+        # freeze the orientation of the controllers
+        cmds.makeIdentity('L_Fk_femur_Grp', apply=True, r=True, t=True)
+        cmds.makeIdentity('L_Fk_knee_Grp', apply=True, r=True, t=True)
+        cmds.makeIdentity('L_Fk_ankle_Grp', apply=True, r=True, t=True)
+        cmds.makeIdentity('L_Fk_ball_Grp', apply=True, r=True, t=True)
+        # delete history of the controllers
+        cmds.delete('L_Fk_femur_Grp', channels=True)
+        cmds.delete('L_Fk_knee_Grp', channels=True)
+        cmds.delete('L_Fk_ankle_Grp', channels=True)
+        cmds.delete('L_Fk_ball_Grp', channels=True)
+        # move the group after the respected name
+        cmds.xform(lFkFemurGrp, t=posTransFemur, worldSpace=True)
+        cmds.xform(lFkKneeGrp, t=posTransKnee, worldSpace=True)
+        cmds.xform(lFkAnkleGrp, t=posTransAnkle, worldSpace=True)
+        cmds.xform(lFkBallGrp, t=posTransBall, worldSpace=True)
+        # orient the group after the respected name
+        cmds.xform(lFkFemurGrp, ro=posOrientFemur, worldSpace=True)
+        cmds.xform(lFkKneeGrp, ro=posOrientKnee, worldSpace=True)
+        cmds.xform(lFkAnkleGrp, ro=posOrientAnkle, worldSpace=True)
+        cmds.xform(lFkBallGrp, ro=posOrientBall, worldSpace=True)
+        # rotate the controls correctly
+        cmds.rotate(0, 90, 0, 'L_Fk_femur_Ctl', relative=True)
+        cmds.rotate(0, 90, 0, 'L_Fk_knee_Ctl', relative=True)
+        cmds.rotate(0, 90, 0, 'L_Fk_ball_Ctl', relative=True)
+        cmds.rotate(0, 90, 0, 'L_Fk_ankle_Ctl', relative=True)
+        # freeze the orientation of the controllers
+        cmds.makeIdentity('L_Fk_femur_Ctl', apply=True, rotate=True, translate=True)
+        cmds.makeIdentity('L_Fk_knee_Ctl', apply=True, rotate=True, translate=True)
+        cmds.makeIdentity('L_Fk_ball_Ctl', apply=True, rotate=True, translate=True)
+        cmds.makeIdentity('L_Fk_ankle_Ctl', apply=True, rotate=True, translate=True)
+        # delete history of the controllers
+        cmds.delete('L_Fk_femur_Ctl', channels=True)
+        cmds.delete('L_Fk_knee_Ctl', channels=True)
+        cmds.delete('L_Fk_ankle_Ctl', channels=True)
+        cmds.delete('L_Fk_ball_Ctl', channels=True)
+        # set the controllers to control the joint limbs
+        cmds.parentConstraint('L_Fk_femur_Ctl', 'L_Fk_femur_jnt', maintainOffset=True)
+        cmds.parentConstraint('L_Fk_knee_Ctl', 'L_Fk_knee_jnt', maintainOffset=True)
+        cmds.parentConstraint('L_Fk_ankle_Ctl', 'L_Fk_ankle_jnt', maintainOffset=True)
+        cmds.parentConstraint('L_Fk_ball_Ctl', 'L_Fk_ball_jnt', maintainOffset=True)
+        # parent the controllers and groups together
+        cmds.parent('L_Fk_ball_Grp','L_Fk_ankle_Ctl' )
+        cmds.parent('L_Fk_ankle_Grp','L_Fk_knee_Ctl' )
+        cmds.parent('L_Fk_knee_Grp','L_Fk_femur_Ctl' )
+        # lock and hide translate, scale and visibility    
+        # femur
+        cmds.setAttr('L_Fk_femur_Ctl.translateX', lock=True, channelBox=False, keyable=False)
+        cmds.setAttr('L_Fk_femur_Ctl.translateY', lock=True, channelBox=False, keyable=False)
+        cmds.setAttr('L_Fk_femur_Ctl.translateZ', lock=True, channelBox=False, keyable=False)
+        cmds.setAttr('L_Fk_femur_Ctl.scaleX', lock=True, channelBox=False, keyable=False)
+        cmds.setAttr('L_Fk_femur_Ctl.scaleY', lock=True, channelBox=False, keyable=False)
+        cmds.setAttr('L_Fk_femur_Ctl.scaleZ', lock=True, channelBox=False, keyable=False)
+        cmds.setAttr('L_Fk_femur_Ctl.visibility', lock=True, channelBox=False, keyable=False)    
+        # knee
+        cmds.setAttr('L_Fk_knee_Ctl.translateX', lock=True, channelBox=False, keyable=False)
+        cmds.setAttr('L_Fk_knee_Ctl.translateY', lock=True, channelBox=False, keyable=False)
+        cmds.setAttr('L_Fk_knee_Ctl.translateZ', lock=True, channelBox=False, keyable=False)
+        cmds.setAttr('L_Fk_knee_Ctl.scaleX', lock=True, channelBox=False, keyable=False)
+        cmds.setAttr('L_Fk_knee_Ctl.scaleY', lock=True, channelBox=False, keyable=False)
+        cmds.setAttr('L_Fk_knee_Ctl.scaleZ', lock=True, channelBox=False, keyable=False)
+        cmds.setAttr('L_Fk_knee_Ctl.visibility', lock=True, channelBox=False, keyable=False)
+        # ankle
+        cmds.setAttr('L_Fk_ankle_Ctl.translateX', lock=True, channelBox=False, keyable=False)
+        cmds.setAttr('L_Fk_ankle_Ctl.translateY', lock=True, channelBox=False, keyable=False)
+        cmds.setAttr('L_Fk_ankle_Ctl.translateZ', lock=True, channelBox=False, keyable=False)
+        cmds.setAttr('L_Fk_ankle_Ctl.scaleX', lock=True, channelBox=False, keyable=False)
+        cmds.setAttr('L_Fk_ankle_Ctl.scaleY', lock=True, channelBox=False, keyable=False)
+        cmds.setAttr('L_Fk_ankle_Ctl.scaleZ', lock=True, channelBox=False, keyable=False)
+        cmds.setAttr('L_Fk_ankle_Ctl.visibility', lock=True, channelBox=False, keyable=False)
+        # ball
+        cmds.setAttr('L_Fk_ball_Ctl.translateX', lock=True, channelBox=False, keyable=False)
+        cmds.setAttr('L_Fk_ball_Ctl.translateY', lock=True, channelBox=False, keyable=False)
+        cmds.setAttr('L_Fk_ball_Ctl.translateZ', lock=True, channelBox=False, keyable=False)
+        cmds.setAttr('L_Fk_ball_Ctl.scaleX', lock=True, channelBox=False, keyable=False)
+        cmds.setAttr('L_Fk_ball_Ctl.scaleY', lock=True, channelBox=False, keyable=False)
+        cmds.setAttr('L_Fk_ball_Ctl.scaleZ', lock=True, channelBox=False, keyable=False)
+        cmds.setAttr('L_Fk_ball_Ctl.visibility', lock=True, channelBox=False, keyable=False)
+    
+        # place them in the group hierarchy if there is one
+        placeInGroup = cmds.ls('main_Grp')
+        # if it is there parent them respectly
+        if placeInGroup:
+            cmds.parent('L_Fk_femur_Grp', 'L_Fk_Grp')    
+        else:
+            return
+            
+        # connect the Fk to the bind
+
+    
+    def L_connectFk_leg(self):
+    
+        # this is done to many times, and should be boiled down when introducing class
+        # find the worldposition ws translate position of femur, knee and ankle
+        posTransFemur = cmds.xform('L_Fk_femur_jnt', q=True, t=True, ws=True)
+        posTransKnee = cmds.xform('L_Fk_knee_jnt', q=True, t=True, ws=True)
+        posTransAnkle = cmds.xform('L_Fk_ankle_jnt', q=True, t=True, ws=True)
+    
+        # find the worldposition ws orient position of femur, knee and ankle
+        posOrientFemur = cmds.xform('L_Fk_femur_jnt', q=True, t=True, ws=True)
+        posOrientKnee = cmds.xform('L_Fk_knee_jnt', q=True, t=True, ws=True)
+        posOrientAnkle = cmds.xform('L_Fk_ankle_jnt', q=True, t=True, ws=True)
+    
+        # create or find 3 pairblend node to switch between ik and fk
+        # femur connection
+        femurPairNode = cmds.ls('L_femur_Pb')
+    
+        # if there already is a pairBlend node connect them together
+        if femurPairNode:
+            cmds.connectAttr('L_Fk_femur_jnt.rotate', 'L_femur_Pb.inRotate2', force=True)
+    
+        # if there are no pairBlend node then we create the node and connects them together
+        else:
+            cmds.shadingNode('pairBlend', asUtility=True, name='L_femur_Pb')
+            cmds.connectAttr('L_Fk_femur_jnt.rotate', 'L_femur_Pb.inRotate2', force=True)       
+    
+        # knee connection   
+        kneePairNode = cmds.ls('L_knee_Pb')
+    
+        # if there already is a pairBlend node connect them together
+        if kneePairNode:
+            cmds.connectAttr('L_Fk_knee_jnt.rotate', 'L_knee_Pb.inRotate2', force=True)
+    
+        # if there are no pairBlend node then we create the node and connects them together
+        else:
+            cmds.shadingNode('pairBlend', asUtility=True, name='L_knee_Pb')
+            cmds.connectAttr('L_Fk_knee_jnt.rotate', 'L_knee_Pb.inRotate2', force=True)   
+    
+        # ankle connection   
+        anklePairNode = cmds.ls('L_ankle_Pb')
+        # if there already is a pairBlend node connect them together
+        if anklePairNode:
+            cmds.connectAttr('L_Fk_ankle_jnt.rotate', 'L_ankle_Pb.inRotate2', force=True)
+        # if there are no pairBlend node then we create the node and connects them together
+        else:
+            cmds.shadingNode('pairBlend', asUtility=True, name='L_ankle_Pb')
+            cmds.connectAttr('L_Fk_ankle_jnt.rotate', 'L_ankle_Pb.inRotate2', force=True)
+    
+        # ball connection
+        ballPairNode = cmds.ls('L_ball_Pb')
+        # if there already is a pairBlend node connect them together
+        if ballPairNode:
+            cmds.connectAttr('L_Fk_ball_jnt.rotate', 'L_ball_Pb.inRotate2', force=True)
+        # if there are no pairBlend node then we create the node and connects them together
+        else:
+            cmds.shadingNode('pairBlend', asUtility=True, name='L_ball_Pb')
+            cmds.connectAttr('L_Fk_ball_jnt.rotate', 'L_ball_Pb.inRotate2', force=True)       
+    
+        # connect the pairBlend node to the Rig joints
+        # femur connection
+        shldrConnect = cmds.listConnections('L_femur_jnt.rotate')
+        if shldrConnect:
+            print "this has a connection"
+            return       
+        else:
+            cmds.connectAttr('L_femur_Pb.outRotate', 'L_femur_jnt.rotate', f=True)
+           
+        # knee connection      
+            kneeConnect = cmds.listConnections('L_knee_jnt.rotate')
+    
+        if kneeConnect:
+            print "this has a connection"
+            return      
+        else:
+            cmds.connectAttr('L_knee_Pb.outRotate', 'L_knee_jnt.rotate', f=True)
+    
+        # ankle connection
+        ankleConnect = cmds.listConnections('L_ankle_jnt.rotate')
+        if ankleConnect:
+            print "this has a connection"
+            return       
+        else:
+            cmds.connectAttr('L_ankle_Pb.outRotate', 'L_ankle_jnt.rotate', f=True)
+    
+        # ball connection
+        ballConnect = cmds.listConnections('L_ball_jnt.rotate')
+        if ballConnect:
+            print "this has a connection"
+            return
+        else:
+            cmds.connectAttr('L_ball_Pb.outRotate', 'L_ball_jnt.rotate', f=True)
+    
+        # Find or create a control for switching between the Ik and Fk
+        createCtl = cmds.ls('L_leg_IkFkSwitch_Ctl')
+        if createCtl:
+            print "control is there"
+            return
+        else:
+            cmds.circle(n='L_leg_IkFkSwitch_Ctl', nr=(0, 0, 1), c=(0, 0, 0), r=0.75)
+    
+            # create a group for the switch control
+            cmds.group(em=True, n='L_leg_IkFkSwitch_Grp')
+    
+            # parent the switch controller to the group
+            cmds.parent('L_leg_IkFkSwitch_Ctl', 'L_leg_IkFkSwitch_Grp')
+    
+            # place the group above the hand
+            cmds.xform('L_leg_IkFkSwitch_Grp', t=posTransAnkle, ws=True)
+            cmds.xform('L_leg_IkFkSwitch_Grp', t=posOrientAnkle, ws=True)
+    
+            # turn the control to be horizontal and move it up
+            cmds.xform('L_leg_IkFkSwitch_Ctl', r=True, ro=(-90, 0, 0))
+            cmds.xform('L_leg_IkFkSwitch_Ctl', r=True, t=(0, 2, 0))
+    
+            # freeze the controlle
+            cmds.makeIdentity('L_leg_IkFkSwitch_Ctl', a=True)
+    
+            # remove history
+            cmds.delete('L_leg_IkFkSwitch_Ctl', ch=True)   
+    
+            # create attributes on the controller for ik fk switch, and the visibility
+            cmds.addAttr('L_leg_IkFkSwitch_CtlShape', ln="ikFkSwitch", at='enum', en='Ik:Fk:', k=True)
+            cmds.addAttr('L_leg_IkFkSwitch_CtlShape', ln="ikFkVisibility", at='enum', en='auto:both:', k=True)
+    
+            # connect the pairBlend to the ikFkSwitch
+    
+            cmds.connectAttr('L_leg_IkFkSwitch_CtlShape.ikFkSwitch', 'L_femur_Pb.weight')
+            cmds.connectAttr('L_leg_IkFkSwitch_CtlShape.ikFkSwitch', 'L_knee_Pb.weight')
+            cmds.connectAttr('L_leg_IkFkSwitch_CtlShape.ikFkSwitch', 'L_ankle_Pb.weight')
+    
+            # hide controls based on the selection ikFkVisibility attribute
+            # create condition node and two reverse nodes for the setup
+    
+            cmds.shadingNode('reverse', n="L_ikFkVisibility01_Rev", au=True)
+            cmds.shadingNode('reverse', n="L_ikFkVisibility02_Rev", au=True)
+            cmds.shadingNode('condition', n="L_ikFkVisibility_Cnd", au=True)
+    
+            # set attributes on the condition node
+    
+            cmds.setAttr('L_ikFkVisibility_Cnd.operation', 0)
+            cmds.setAttr('L_ikFkVisibility_Cnd.colorIfTrueR', 1)
+            cmds.setAttr('L_ikFkVisibility_Cnd.colorIfTrueG', 1)
+    
+            # connect the ikFkSwitch to the nodes
+            cmds.connectAttr('L_leg_IkFkSwitch_CtlShape.ikFkSwitch', "L_ikFkVisibility01_Rev.input.inputX")
+            cmds.connectAttr('L_leg_IkFkSwitch_CtlShape.ikFkSwitch', "L_ikFkVisibility_Cnd.colorIfFalseR")
+            cmds.connectAttr('L_leg_IkFkSwitch_CtlShape.ikFkVisibility', "L_ikFkVisibility02_Rev.input.inputX")
+    
+            # connect the reverse nodes to the condition
+    
+            cmds.connectAttr("L_ikFkVisibility01_Rev.output.outputX", "L_ikFkVisibility_Cnd.colorIfFalseG")
+            cmds.connectAttr("L_ikFkVisibility02_Rev.output.outputX", "L_ikFkVisibility_Cnd.firstTerm")
+    
+            # connect the condition node to ik and fk control top groups, outColorG = Ik outColorR = Fk
+    
+            cmds.connectAttr('L_ikFkVisibility_Cnd.outColorG', 'L_Ik_foot_Grp.visibility')
+            cmds.connectAttr('L_ikFkVisibility_Cnd.outColorG', 'L_leg_poleVec_Grp.visibility')
+            cmds.connectAttr('L_ikFkVisibility_Cnd.outColorG', 'L_Ik_femur_jnt.visibility')
+            cmds.connectAttr('L_ikFkVisibility_Cnd.outColorR', 'L_Fk_femur_Grp.visibility')
+            cmds.connectAttr('L_ikFkVisibility_Cnd.outColorR', 'L_Fk_femur_jnt.visibility')
+    
+            # lock and hide the translate, rotate, scale and hide visibility
+    
+            #translate
+            cmds.setAttr('L_leg_IkFkSwitch_Ctl.translateX', lock=True, channelBox=False, keyable=False)
+            cmds.setAttr('L_leg_IkFkSwitch_Ctl.translateY', lock=True, channelBox=False, keyable=False)
+            cmds.setAttr('L_leg_IkFkSwitch_Ctl.translateZ', lock=True, channelBox=False, keyable=False)
+    
+            #rotate
+            cmds.setAttr('L_leg_IkFkSwitch_Ctl.rotateX', lock=True, channelBox=False, keyable=False)
+            cmds.setAttr('L_leg_IkFkSwitch_Ctl.rotateY', lock=True, channelBox=False, keyable=False)
+            cmds.setAttr('L_leg_IkFkSwitch_Ctl.rotateZ', lock=True, channelBox=False, keyable=False)
+    
+            #scale
+            cmds.setAttr('L_leg_IkFkSwitch_Ctl.scaleX', lock=True, channelBox=False, keyable=False)
+            cmds.setAttr('L_leg_IkFkSwitch_Ctl.scaleY', lock=True, channelBox=False, keyable=False)
+            cmds.setAttr('L_leg_IkFkSwitch_Ctl.scaleZ', lock=True, channelBox=False, keyable=False)
+    
+            #visibility
+            cmds.setAttr('L_leg_IkFkSwitch_Ctl.visibility', lock=False, channelBox=False, keyable=False)
+    
+            # parent the group respectively
+            cmds.parent('L_leg_IkFkSwitch_Grp', 'L_Ik_Grp')
+    
+            # get the control to follow the hand by getting the top group parentConstrainted
+            cmds.parentConstraint('L_ankle_jnt', 'L_leg_IkFkSwitch_Grp', maintainOffset=True)
+
+        # connect the Ik to the bind    
+    def L_connectIk_leg(self):
+    
+        # this is done to many times, and should be boiled down when introducing class
+        # find the worldposition ws translate position of femur, knee and ankle
+        posTransfemur = cmds.xform('L_Ik_femur_jnt', q=True, t=True, ws=True)
+        posTransknee = cmds.xform('L_Ik_knee_jnt', q=True, t=True, ws=True)
+        posTransankle = cmds.xform('L_Ik_ankle_jnt', q=True, t=True, ws=True)
+    
+        # find the worldposition ws orient position of femur, knee and ankle
+        posOrientfemur = cmds.xform('L_Ik_femur_jnt', q=True, t=True, ws=True)
+        posOrientknee = cmds.xform('L_Ik_knee_jnt', q=True, t=True, ws=True)
+        posOrientankle = cmds.xform('L_Ik_ankle_jnt', q=True, t=True, ws=True)
+    
+        # create or find 3 pairblend node to connect the fk joints to 
+        # femur connection
+        femurPairNode = cmds.ls('L_femur_Pb')
+    
+        # if there already is a pairBlend node connect them together
+        if femurPairNode:
+            cmds.connectAttr('L_Ik_femur_jnt.rotate', 'L_femur_Pb.inRotate1', force=True)
+    
+        # if there are no pairBlend node then we create the node and connects them together
+        else:
+            cmds.shadingNode('pairBlend', asUtility=True, name='L_femur_Pb')
+            cmds.connectAttr('L_Ik_femur_jnt.rotate', 'L_femur_Pb.inRotate1', force=True)
+           
+        # knee connection  
+        kneePairNode = cmds.ls('L_knee_Pb')
+    
+        # if there already is a pairBlend node connect them together
+        if kneePairNode:
+            cmds.connectAttr('L_Ik_knee_jnt.rotate', 'L_knee_Pb.inRotate1', force=True)
+    
+        # if there are no pairBlend node then we create the node and connects them together
+    
+        else:
+            cmds.shadingNode('pairBlend', asUtility=True, name='L_knee_Pb')
+            cmds.connectAttr('L_Ik_knee_jnt.rotate', 'L_knee_Pb.inRotate1', force=True)   
+    
+        # ankle connection   
+        anklePairNode = cmds.ls('L_ankle_Pb')
+    
+        # if there already is a pairBlend node connect them together
+        if anklePairNode:
+            cmds.connectAttr('L_Ik_ankle_jnt.rotate', 'L_ankle_Pb.inRotate1', force=True)
+    
+        # if there are no pairBlend node then we create the node and connects them together
+        else:
+            cmds.shadingNode('pairBlend', asUtility=True, name='L_ankle_Pb')
+            cmds.connectAttr('L_Ik_ankle_jnt.rotate', 'L_ankle_Pb.inRotate1', force=True)
+            
+            
+        # ball connection   
+        ballPairNode = cmds.ls('L_ball_Pb')
+    
+        # if there already is a pairBlend node connect them together
+        if ballPairNode:
+            cmds.connectAttr('L_Ik_ball_jnt.rotate', 'L_ball_Pb.inRotate1', force=True)
+    
+        # if there are no pairBlend node then we create the node and connects them together
+        else:
+            cmds.shadingNode('pairBlend', asUtility=True, name='L_ball_Pb')
+            cmds.connectAttr('L_Ik_ball_jnt.rotate', 'L_ball_Pb.inRotate1', force=True)
+   
+        # connect the pairBlend node to the Rig joints    
+        # femur connection    
+        shldrConnect = cmds.listConnections('L_femur_jnt.rotate')
+        if shldrConnect:
+            print "this has a connection"    
+            return     
+        else:
+            cmds.connectAttr('L_femur_Pb.outRotate', 'L_femur_jnt.rotate', f=True)
+           
+        # knee connection      
+            kneeConnect = cmds.listConnections('L_knee_jnt.rotate')
+        if kneeConnect:    
+            print "this has a connection"
+            return       
+        else:
+            cmds.connectAttr('L_knee_Pb.outRotate', 'L_knee_jnt.rotate', f=True)
+    
+        # ankle connection
+        ankleConnect = cmds.listConnections('L_ankle_jnt.rotate')
+        if ankleConnect:
+            print "this has a connection"
+            return      
+        else:
+            cmds.connectAttr('L_ankle_Pb.outRotate', 'L_ankle_jnt.rotate', f=True)
+    
+        # ball connection
+        ballConnect = cmds.listConnections('L_ball_jnt.rotate')
+        if ballConnect:
+            print "this has a connection"
+    
+            return       
+        else:
+            cmds.connectAttr('L_ball_Pb.outRotate', 'L_ball_jnt.rotate', f=True)       
+    
+        # Find or create a control for switching between the Ik and Fk
+        createCtl = cmds.ls('L_leg_IkFkSwitch_Ctl')
+        if createCtl:
+            print "control is there"
+            return       
+        else:
+            cmds.circle(n='L_leg_IkFkSwitch_Ctl', nr=(0, 0, 1), c=(0, 0, 0), r=0.75)
+    
+            # create a group for the switch control
+            cmds.group(em=True, n='L_leg_IkFkSwitch_Grp')
+    
+            # parent the switch controller to the group
+            cmds.parent('L_leg_IkFkSwitch_Ctl', 'L_leg_IkFkSwitch_Grp')
+    
+            # place the group above the hand
+            cmds.xform('L_leg_IkFkSwitch_Grp', t=posTransankle, ws=True)
+            cmds.xform('L_leg_IkFkSwitch_Grp', t=posOrientankle, ws=True)
+    
+            # turn the control to be horizontal and move it up
+            cmds.xform('L_leg_IkFkSwitch_Ctl', r=True, ro=(-90, 0, 0))
+            cmds.xform('L_leg_IkFkSwitch_Ctl', r=True, t=(0, 2, 0))
+    
+            # freeze the controlle
+            cmds.makeIdentity('L_leg_IkFkSwitch_Ctl', a=True)
+    
+            # remove history
+            cmds.delete('L_leg_IkFkSwitch_Ctl', ch=True)   
+    
+            # create attributes on the controller for ik fk switch, and the visibility
+            cmds.addAttr('L_leg_IkFkSwitch_CtlShape', ln="ikFkSwitch", at='enum', en='Ik:Fk:', k=True)
+            cmds.addAttr('L_leg_IkFkSwitch_CtlShape', ln="ikFkVisibility", at='enum', en='auto:both:', k=True)
+    
+            # connect the pairBlend to the ikFkSwitch
+            cmds.connectAttr('L_leg_IkFkSwitch_CtlShape.ikFkSwitch', 'L_femur_Pb.weight')
+            cmds.connectAttr('L_leg_IkFkSwitch_CtlShape.ikFkSwitch', 'L_knee_Pb.weight')
+            cmds.connectAttr('L_leg_IkFkSwitch_CtlShape.ikFkSwitch', 'L_ankle_Pb.weight')
+    
+            # hide controls based on the selection ikFkVisibility attribute
+            # create condition node and two reverse nodes for the setup
+            cmds.shadingNode('reverse', n="L_ikFkVisibility01_Rev", au=True)
+            cmds.shadingNode('reverse', n="L_ikFkVisibility02_Rev", au=True)
+            cmds.shadingNode('condition', n="L_ikFkVisibility_Cnd", au=True)
+    
+            # set attributes on the condition node
+            cmds.setAttr('L_ikFkVisibility_Cnd.operation', 0)
+            cmds.setAttr('L_ikFkVisibility_Cnd.colorIfTrueR', 1)
+            cmds.setAttr('L_ikFkVisibility_Cnd.colorIfTrueG', 1)
+    
+            # connect the ikFkSwitch to the nodes
+            cmds.connectAttr('L_leg_IkFkSwitch_CtlShape.ikFkSwitch', "L_ikFkVisibility01_Rev.input.inputX")
+            cmds.connectAttr('L_leg_IkFkSwitch_CtlShape.ikFkSwitch', "L_ikFkVisibility_Cnd.colorIfFalseR")
+            cmds.connectAttr('L_leg_IkFkSwitch_CtlShape.ikFkVisibility', "L_ikFkVisibility02_Rev.input.inputX")
+    
+            # connect the reverse nodes to the condition
+            cmds.connectAttr("L_ikFkVisibility01_Rev.output.outputX", "L_ikFkVisibility_Cnd.colorIfFalseG")
+            cmds.connectAttr("L_ikFkVisibility02_Rev.output.outputX", "L_ikFkVisibility_Cnd.firstTerm")
+    
+            # connect the condition node to ik and fk control top groups, outColorG = Ik outColorR = Fk
+            cmds.connectAttr('L_ikFkVisibility_Cnd.outColorG', 'L_Ik_foot_Grp.visibility')
+            cmds.connectAttr('L_ikFkVisibility_Cnd.outColorG', 'L_leg_poleVec_Grp.visibility')
+            cmds.connectAttr('L_ikFkVisibility_Cnd.outColorG', 'L_Ik_femur_jnt.visibility')
+            cmds.connectAttr('L_ikFkVisibility_Cnd.outColorR', 'L_Fk_femur_Grp.visibility')
+            cmds.connectAttr('L_ikFkVisibility_Cnd.outColorR', 'L_Fk_femur_jnt.visibility')
+    
+            # lock and hide the translate, rotate, scale and hide visibility
+            #translate
+            cmds.setAttr('L_leg_IkFkSwitch_Ctl.translateX', lock=True, channelBox=False, keyable=False)
+            cmds.setAttr('L_leg_IkFkSwitch_Ctl.translateY', lock=True, channelBox=False, keyable=False)
+            cmds.setAttr('L_leg_IkFkSwitch_Ctl.translateZ', lock=True, channelBox=False, keyable=False)
+    
+            #rotate
+            cmds.setAttr('L_leg_IkFkSwitch_Ctl.rotateX', lock=True, channelBox=False, keyable=False)
+            cmds.setAttr('L_leg_IkFkSwitch_Ctl.rotateY', lock=True, channelBox=False, keyable=False)
+            cmds.setAttr('L_leg_IkFkSwitch_Ctl.rotateZ', lock=True, channelBox=False, keyable=False)
+    
+            #scale
+            cmds.setAttr('L_leg_IkFkSwitch_Ctl.scaleX', lock=True, channelBox=False, keyable=False)
+            cmds.setAttr('L_leg_IkFkSwitch_Ctl.scaleY', lock=True, channelBox=False, keyable=False)
+            cmds.setAttr('L_leg_IkFkSwitch_Ctl.scaleZ', lock=True, channelBox=False, keyable=False)
+    
+            #visibility
+            cmds.setAttr('L_leg_IkFkSwitch_Ctl.visibility', lock=False, channelBox=False, keyable=False)
+    
+            # parent the group respectively
+            cmds.parent('L_leg_IkFkSwitch_Grp', 'L_Ik_Grp')
+    
+            # get the control to follow the hand by getting the top group parentConstrainted
+            cmds.parentConstraint('L_ankle_jnt', 'L_leg_IkFkSwitch_Grp', maintainOffset=True)
