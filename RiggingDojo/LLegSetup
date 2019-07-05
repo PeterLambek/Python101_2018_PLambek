@@ -17,7 +17,7 @@ L_Leg_Setup=l_leg_setup()
 L_Leg_Setup.L_fk_leg()
 
 L_Leg_Setup=l_leg_setup()
-L_Leg_Setup.L_connectIk_leg()
+L_Leg_Setup.L_connectFk_leg()
 
 class utillity():
 
@@ -770,6 +770,15 @@ class l_leg_setup():
     
             # get the control to follow the hand by getting the top group parentConstrainted
             cmds.parentConstraint('L_ankle_jnt', 'L_leg_IkFkSwitch_Grp', maintainOffset=True)
+            
+            #parent the L_leg_IkFkSwitch_Ctl Shape node to the controls
+            cmds.parent('L_Fk_femur_CtlShape', 'L_Ik_knee_Ctl', add=True, shape=True)
+            cmds.parent('L_Fk_knee_CtlShape', 'L_Ik_foot_Ctl', add=True, shape=True)
+            cmds.parent('L_Fk_ankle_CtlShape', 'L_Ik_knee_Ctl', add=True, shape=True)
+            cmds.parent('L_Fk_ball_CtlShape', 'L_Ik_foot_Ctl', add=True, shape=True)
+            
+            #hide the shape node
+            cmds.setAttr('L_leg_IkFkSwitch_CtlShape.lodVisibility', 0)
 
         # connect the Ik to the bind    
     def L_connectIk_leg(self):
@@ -958,3 +967,10 @@ class l_leg_setup():
     
             # get the control to follow the hand by getting the top group parentConstrainted
             cmds.parentConstraint('L_ankle_jnt', 'L_leg_IkFkSwitch_Grp', maintainOffset=True)
+            
+            #parent the L_leg_IkFkSwitch_Ctl Shape node to the controls
+            cmds.parent('L_leg_IkFkSwitch_CtlShape', 'L_Ik_knee_Ctl', add=True, shape=True)
+            cmds.parent('L_leg_IkFkSwitch_CtlShape', 'L_Ik_foot_Ctl', add=True, shape=True)
+            
+            #hide the shape node
+            cmds.setAttr('L_leg_IkFkSwitch_CtlShape.lodVisibility', 0)
