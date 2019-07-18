@@ -21,6 +21,10 @@ L_Leg_Setup.L_connectIk_leg()
 
 L_Leg_Setup=l_leg_setup()
 L_Leg_Setup.L_connectFk_leg()
+
+L_Leg_Setup=l_leg_setup()
+L_Leg_Setup.L_leg_stretch('L_leg_IkFkSwitch_Ctl')
+
 """
 class utillity():
 
@@ -477,11 +481,12 @@ class l_leg_setup():
         print "______________ATTENSION________________"
         print "You need to manual set the L_heel_pivot_Grp pivot to the heel"
         print "Also set the left and right foot bank pivot position"
+       
+        # getting controller to control the orient of the wrist
+        #cmds.orientConstraint('L_Ik_foot_Ctl', 'L_Ik_ankle_jnt', mo=True)
          
         # Create Pole vec
 
-        # getting controller to control the orient of the wrist
-        cmds.orientConstraint('L_Ik_foot_Ctl', 'L_Ik_ankle_jnt', mo=True)
         # create a locator as a poleVector
         pv_loc = cmds.spaceLocator(n='L_leg_poleVec_Loc')
         # create a group as the group for a poleVector
@@ -1240,7 +1245,7 @@ class l_leg_setup():
             #hide the shape node
             cmds.setAttr('L_leg_IkFkSwitch_CtlShape.lodVisibility', 0)
             
-        L_leg_stretch('L_leg_IkFkSwitch_Ctl')
+        #L_leg_stretch('L_leg_IkFkSwitch_Ctl')
         
         def L_leg_stretch(object):
             # create extra joints  for the measure distance
@@ -1259,6 +1264,8 @@ class l_leg_setup():
             ikDist_ankle = cmds.rename(ikDist_leg[2], 'L_IkDist_ankle_jnt')
             # delete the joints that is not needed
             cmds.delete(ikDist_leg[3], hi=True)
+            # hide jnts
+            cmds.setAttr(ikDist_leg[0]+'.visibility', 0)
             #create the attribute on the control shape
             cmds.addAttr(object+'Shape', ln="stretchSeperator1", nn="__", at='enum', en='__________')
             cmds.setAttr(object+'Shape.stretchSeperator1', e=True, k=True, lock=True)
@@ -1268,7 +1275,7 @@ class l_leg_setup():
             # create the distance nodes and connect them to the distace joints joints
             dist_femurKnee_Db = cmds.shadingNode('distanceBetween', asUtility=True, name="L_femurKnee_distance")
             dist_kneeAnkle_Db = cmds.shadingNode('distanceBetween', asUtility=True, name="L_kneeAnkle_distance")
-            dist_femurAnkle_Db = cmds.shadingNode('distanceBetween', asUtility=True, name="L_femurAnkle_distance")
+            dist_femurCtl_Db = cmds.shadingNode('distanceBetween', asUtility=True, name="L_femurAnkle_distance")
             # femur to knee
             cmds.connectAttr(ikDist_femur+'.worldMatrix', dist_femurKnee_Db+'.inMatrix1')
             cmds.connectAttr(ikDist_knee+'.worldMatrix', dist_femurKnee_Db+'.inMatrix2')
@@ -1280,10 +1287,10 @@ class l_leg_setup():
             cmds.connectAttr(ikDist_knee+'.rotatePivotTranslate', dist_kneeAnkle_Db+'.point1')
             cmds.connectAttr(ikDist_ankle+'.rotatePivotTranslate', dist_kneeAnkle_Db+'.point2')
             # femur to ankle
-            cmds.connectAttr(ikDist_femur+'.worldMatrix', dist_femurAnkle_Db+'.inMatrix1')
-            cmds.connectAttr(ikDist_ankle+'.worldMatrix', dist_femurAnkle_Db+'.inMatrix2')
-            cmds.connectAttr(ikDist_femur+'.rotatePivotTranslate', dist_femurAnkle_Db+'.point1')
-            cmds.connectAttr(ikDist_ankle+'.rotatePivotTranslate', dist_femurAnkle_Db+'.point2')
+            cmds.connectAttr(ikDist_femur+'.worldMatrix', dist_femurCtl_Db+'.inMatrix1')
+            cmds.connectAttr('L_femurAnkle_Ikh.worldMatrix', dist_femurCtl_Db+'.inMatrix2')
+            cmds.connectAttr(ikDist_femur+'.rotatePivotTranslate', dist_femurCtl_Db+'.point1')
+            cmds.connectAttr('L_femurAnkle_Ikh.rotatePivotTranslate', dist_femurCtl_Db+'.point2')
             # create a node to combine the knee and ankle
             dist_comb_Adl = cmds.shadingNode('addDoubleLinear', asUtility=True, name="L_leg_kneeAnkle_combined_Adl")
             cmds.connectAttr(dist_femurKnee_Db+'.distance', dist_comb_Adl+'.input1')
@@ -1291,7 +1298,7 @@ class l_leg_setup():
             # create the multiplyDivide node to combine the dist_femurAnkle and dist_comb, and then combine em
             dist_comb_all_Md = cmds.shadingNode('multiplyDivide', asUtility=True, name="L_leg_distCombined_Md")
             cmds.setAttr(dist_comb_all_Md+'.operation', 2)
-            cmds.connectAttr(dist_femurAnkle_Db+'.distance', dist_comb_all_Md+'.input1X')
+            cmds.connectAttr(dist_femurCtl_Db+'.distance', dist_comb_all_Md+'.input1X')
             cmds.connectAttr(dist_comb_Adl+'.output', dist_comb_all_Md+'.input2X')
             # create condition node
             dist_stretch_cnd = cmds.shadingNode('condition', asUtility=True, name="L_leg_stretch_Cnd")
@@ -1308,4 +1315,5 @@ class l_leg_setup():
             # connect the stretcj_cnd to the joints scaleX
             cmds.connectAttr(L_leg_stretch_onOff+'.outColorR', "L_Ik_femur_jnt.scaleX")
             cmds.connectAttr(L_leg_stretch_onOff+'.outColorR', "L_Ik_knee_jnt.scaleX")
+    
     
