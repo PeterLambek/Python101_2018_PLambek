@@ -159,8 +159,8 @@ class l_leg_setup():
         # parent the null to the group
         cmds.parent(ik_Null, ik_grp)
         # create the control
-        ik_foot_ctl = cmds.circle(n='L_Ik_foot_Ctl', nr=(0, 0, 1), c=(0, 0, 0), r=3.0, ch=False)
-        ik_offset_foot_ctl = cmds.circle(n='L_Ik_offsetFoot_Ctl', nr=(0, 0, 1), c=(0, 0, 0), r=3.25, ch=False)
+        ik_foot_ctl = cmds.circle(n='L_Ik_foot_Ctl', nr=(0, 0, 1), c=(0, 0, 0), r=1.0, ch=False)
+        ik_offset_foot_ctl = cmds.circle(n='L_Ik_offsetFoot_Ctl', nr=(0, 0, 1), c=(0, 0, 0), r=1.25, ch=False)
         # hide shape node
         j= cmds.listHistory(ik_foot_ctl, af=1)
         print j
@@ -509,7 +509,7 @@ class l_leg_setup():
         cmds.delete(pv_grp+'_pointConstraint1')
         cmds.delete(pv_grp+'_aimConstraint1')
         # place the locater out from the knee using the X axis trans
-        cmds.move(30, pv_loc, z=True, a=True)
+        cmds.move(5, pv_loc, z=True, a=True)
         # create controller for the polevector
         ik_knee_ctl = cmds.curve(n='L_Ik_knee_Ctl', d = 1,p = [[0.5000000000000019, -0.250000000000001, 5.551115123125783e-17], [0.5000000000000019, 0.249999999999999, -5.551115123125783e-17],
         [0.25000000000000183, 0.24999999999999906, -5.551115123125783e-17],
@@ -517,9 +517,9 @@ class l_leg_setup():
         [-0.4999999999999984, 0.24999999999999922, -5.551115123125783e-17], [-0.4999999999999984, -0.2500000000000008, 5.551115123125783e-17], [-0.2499999999999983, -0.25000000000000083, 5.551115123125783e-17],
         [-0.2499999999999983, -0.5000000000000009, 1.1102230246251565e-16], [0.25000000000000183, -0.5000000000000009, 1.1102230246251565e-16], [0.25000000000000183, -0.25000000000000094, 5.551115123125783e-17],
         [0.5000000000000019, -0.250000000000001, 5.551115123125783e-17]],k = (0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0))
-        cmds.setAttr(ik_knee_ctl+".scaleX", 4)
-        cmds.setAttr(ik_knee_ctl+".scaleY", 4)
-        cmds.setAttr(ik_knee_ctl+".scaleZ", 4)
+        #cmds.setAttr(ik_knee_ctl+".scaleX", 4)
+        #cmds.setAttr(ik_knee_ctl+".scaleY", 4)
+        #cmds.setAttr(ik_knee_ctl+".scaleZ", 4)
         # move parent the controller to the locator locatieon
         cmds.pointConstraint(pv_loc, ik_knee_ctl)
         # delete pointConstraint from controller
@@ -638,14 +638,14 @@ class l_leg_setup():
         lFkAnkleGrp = cmds.group(empty=True, n='L_Fk_ankle_Grp')
         lFkBallGrp = cmds.group(empty=True, n='L_Fk_ball_Grp')
         # create a controller for each limb (3)
-        lFemurCtl = cmds.circle(n='L_Fk_femur_Ctl', normal=(0, 0, 1), center=(0, 0, 0), radius=2.5, ch=False)
-        lOffsetFemurCtl = cmds.circle(n='L_Fk_offsetFemur_Ctl', normal=(0, 0, 1), center=(0, 0, 0), radius=3.0, ch=False)
-        lKneeCtl = cmds.circle(n='L_Fk_knee_Ctl', normal=(0, 0, 1), center=(0, 0, 0), radius=2.5, ch=False)
-        lOffsetKneeCtl = cmds.circle(n='L_Fk_offsetKnee_Ctl', normal=(0, 0, 1), center=(0, 0, 0), radius=3.0, ch=False)
-        lAnkleCtl = cmds.circle(n='L_Fk_ankle_Ctl', normal=(0, 0, 1), center=(0, 0, 0), radius=2.5, ch=False)
-        lOffsetAnkleCtl = cmds.circle(n='L_Fk_offsetAnkle_Ctl', normal=(0, 0, 1), center=(0, 0, 0), radius=3.0, ch=False)
-        lBallCtl = cmds.circle(n='L_Fk_ball_Ctl', normal=(0, 0, 1), center=(0, 0, 0), radius=2.5, ch=False)
-        lOffsetBallCtl = cmds.circle(n='L_Fk_offsetBall_Ctl', normal=(0, 0, 1), center=(0, 0, 0), radius=3.0, ch=False)
+        lFemurCtl = cmds.circle(n='L_Fk_femur_Ctl', normal=(0, 0, 1), center=(0, 0, 0), radius=0.5, ch=False)
+        lOffsetFemurCtl = cmds.circle(n='L_Fk_offsetFemur_Ctl', normal=(0, 0, 1), center=(0, 0, 0), radius=1.0, ch=False)
+        lKneeCtl = cmds.circle(n='L_Fk_knee_Ctl', normal=(0, 0, 1), center=(0, 0, 0), radius=0.5, ch=False)
+        lOffsetKneeCtl = cmds.circle(n='L_Fk_offsetKnee_Ctl', normal=(0, 0, 1), center=(0, 0, 0), radius=1.0, ch=False)
+        lAnkleCtl = cmds.circle(n='L_Fk_ankle_Ctl', normal=(0, 0, 1), center=(0, 0, 0), radius=0.5, ch=False)
+        lOffsetAnkleCtl = cmds.circle(n='L_Fk_offsetAnkle_Ctl', normal=(0, 0, 1), center=(0, 0, 0), radius=1.0, ch=False)
+        lBallCtl = cmds.circle(n='L_Fk_ball_Ctl', normal=(0, 0, 1), center=(0, 0, 0), radius=0.5, ch=False)
+        lOffsetBallCtl = cmds.circle(n='L_Fk_offsetBall_Ctl', normal=(0, 0, 1), center=(0, 0, 0), radius=1.0, ch=False)
         # parent the control to the offset control
         cmds.parent(lOffsetFemurCtl, lFemurCtl)
         cmds.parent(lOffsetKneeCtl, lKneeCtl)
@@ -1351,10 +1351,17 @@ class l_leg_setup():
         # create stretch on / off
         cmds.addAttr(object+'Shape', ln="stretch", attributeType='enum', en='off:on')
         cmds.setAttr(object+'Shape.stretch', edit=True, keyable=True)
+        cmds.addAttr(object+'Shape', ln="lock", attributeType='double', min=0, max=1, dv=0)
+        cmds.setAttr(object+'Shape.lock', edit=True, keyable=True)
+        cmds.addAttr(object+'Shape', ln="nudge", attributeType='double', min=0, max=1, dv=0)
+        cmds.setAttr(object+'Shape.nudge', edit=True, keyable=True)
         # create the distance nodes and connect them to the distace joints joints
         dist_femurKnee_Db = cmds.shadingNode('distanceBetween', asUtility=True, name="L_femurKnee_distance")
         dist_kneeAnkle_Db = cmds.shadingNode('distanceBetween', asUtility=True, name="L_kneeAnkle_distance")
         dist_femurCtl_Db = cmds.shadingNode('distanceBetween', asUtility=True, name="L_femurAnkle_distance")
+        # create the distance node from femur and ankle to knee control
+        dist_femurKneeCtl_Db = cmds.shadingNode('distanceBetween', asUtility=True, name="L_upper_stretch_distance")
+        dist_kneeCtlAnkle_Db = cmds.shadingNode('distanceBetween', asUtility=True, name="L_lower_stretch_distance")
         # femur to knee
         cmds.connectAttr(ikDist_femur+'.worldMatrix', dist_femurKnee_Db+'.inMatrix1')
         cmds.connectAttr(ikDist_knee+'.worldMatrix', dist_femurKnee_Db+'.inMatrix2')
@@ -1367,9 +1374,19 @@ class l_leg_setup():
         cmds.connectAttr(ikDist_ankle+'.rotatePivotTranslate', dist_kneeAnkle_Db+'.point2')
         # femur to ankle
         cmds.connectAttr(ikDist_femur+'.worldMatrix', dist_femurCtl_Db+'.inMatrix1')
-        cmds.connectAttr('L_femurAnkle_Ikh.worldMatrix', dist_femurCtl_Db+'.inMatrix2')
+        cmds.connectAttr('L_Ik_foot_Ctl.worldMatrix', dist_femurCtl_Db+'.inMatrix2')
         cmds.connectAttr(ikDist_femur+'.rotatePivotTranslate', dist_femurCtl_Db+'.point1')
-        cmds.connectAttr('L_femurAnkle_Ikh.rotatePivotTranslate', dist_femurCtl_Db+'.point2')
+        cmds.connectAttr('L_Ik_foot_Ctl.rotatePivotTranslate', dist_femurCtl_Db+'.point2')
+        # femur to knee control
+        cmds.connectAttr(ikDist_femur+'.worldMatrix', dist_femurKneeCtl_Db+'.inMatrix1')
+        cmds.connectAttr('L_leg_poleVec_Loc.worldMatrix', dist_femurKneeCtl_Db+'.inMatrix2')
+        cmds.connectAttr(ikDist_femur+'.rotatePivotTranslate', dist_femurKneeCtl_Db+'.point1')
+        cmds.connectAttr('L_leg_poleVec_Loc.rotatePivotTranslate', dist_femurKneeCtl_Db+'.point2')
+        # ankle to knee control
+        cmds.connectAttr(ikDist_ankle+'.worldMatrix', dist_kneeCtlAnkle_Db+'.inMatrix1')
+        cmds.connectAttr('L_leg_poleVec_Loc.worldMatrix', dist_kneeCtlAnkle_Db+'.inMatrix2')
+        cmds.connectAttr(ikDist_ankle+'.rotatePivotTranslate', dist_kneeCtlAnkle_Db+'.point1')
+        cmds.connectAttr('L_leg_poleVec_Loc.rotatePivotTranslate', dist_kneeCtlAnkle_Db+'.point2')
         # create a node to combine the knee and ankle
         dist_comb_Adl = cmds.shadingNode('addDoubleLinear', asUtility=True, name="L_leg_kneeAnkle_combined_Adl")
         cmds.connectAttr(dist_femurKnee_Db+'.distance', dist_comb_Adl+'.input1')
@@ -1386,23 +1403,47 @@ class l_leg_setup():
         cmds.setAttr(dist_stretch_cnd+'.colorIfTrueR', 1)    
         cmds.connectAttr(dist_comb_all_Md+'.outputX', dist_stretch_cnd+'.colorIfFalseR')
         cmds.connectAttr(dist_comb_all_Md+'.outputX', dist_stretch_cnd+'.firstTerm')
+        # create two nudge nodes, addDoublelinear and multDoubleLinear. set the Mdl input2 to 0.001
+        L_leg_nudge_val_Adl = cmds.shadingNode('addDoubleLinear', asUtility=True, name="L_leg_nudge_val_Adl")
+        L_leg_nudge_normalizer_Mdl = cmds.shadingNode('multDoubleLinear', asUtility=True, name="L_leg_nudge_normalizer_Mdl")
+        cmds.setAttr(L_leg_nudge_normalizer_Mdl+'.input2', 0.001)
+        cmds.connectAttr(object+'Shape.nudge', L_leg_nudge_normalizer_Mdl+'.input1')
+        cmds.connectAttr(L_leg_nudge_normalizer_Mdl+'.output', L_leg_nudge_val_Adl+'.input2')
         # create the On/off for the stretch
         L_leg_stretch_onOff = cmds.shadingNode('condition', name="L_leg_stretchOnOff_Cnd", asUtility=True)
         cmds.setAttr(L_leg_stretch_onOff+'.operation', 1)
         cmds.connectAttr(dist_stretch_cnd+'.outColorR', L_leg_stretch_onOff+'.colorIfTrueR')
         cmds.connectAttr(object+'Shape.stretch', L_leg_stretch_onOff+'.firstTerm')
-        # create the node to match the translateX value to the stretch setup        
+        # create the node to match the translateX value to the stretch setup       
         l_knee_matchStretch_md = cmds.createNode('multiplyDivide', n="L_knee_matchStretch_Md")
         l_ankle_matchStretch_md = cmds.createNode('multiplyDivide', n="L_ankle_matchStretch_Md")
-        # grab the translation X value and set it in the mulitplydivide input2X        
+        #create the blend node to turn off/on the knee lock
+        l_knee_lock_bc = cmds.shadingNode('blendColors', asUtility=True, name="L_leg_upper_lock_onOff_Bc")
+        l_ankle_lock_bc = cmds.shadingNode('blendColors', asUtility=True, name="L_leg_lower_lock_onOff_Bc")
+        # grab the translation X value and set it in the mulitplydivide input2X  
         kneeTransX = cmds.getAttr("{}.tx".format("L_Ik_knee_jnt"))
         ankleTransX = cmds.getAttr("{}.tx".format("L_Ik_ankle_jnt"))        
         cmds.setAttr(l_knee_matchStretch_md+'.input2X', kneeTransX)
         cmds.setAttr(l_ankle_matchStretch_md+'.input2X', ankleTransX)
         # connect the on/off to the matchStretch        
-        cmds.connectAttr(L_leg_stretch_onOff+'.outColorR', l_knee_matchStretch_md+'.input1X')
-        cmds.connectAttr(L_leg_stretch_onOff+'.outColorR', l_ankle_matchStretch_md+'.input1X')
-        # connect the stretcj_cnd to the joints scaleX
-        cmds.connectAttr(l_knee_matchStretch_md+'.outputX', "L_Ik_knee_jnt.translateX")
-        cmds.connectAttr(l_ankle_matchStretch_md+'.outputX', "L_Ik_ankle_jnt.translateX")
+        cmds.connectAttr(L_leg_stretch_onOff+'.outColorR', L_leg_nudge_val_Adl+'.input1')
+        # 
+        cmds.connectAttr(L_leg_nudge_val_Adl+'.output', l_knee_matchStretch_md+'.input1X')
+        cmds.connectAttr(L_leg_nudge_val_Adl+'.output', l_ankle_matchStretch_md+'.input1X')
+        # connect the stretch on / off to the knee lock on / off
+        cmds.connectAttr(l_knee_matchStretch_md+'.outputX', l_knee_lock_bc+'.color2R')
+        cmds.connectAttr(l_ankle_matchStretch_md+'.outputX', l_ankle_lock_bc+'.color2R')
+        # connect the Ik knee poleVec distance nodes to the knee lock on / off
+        cmds.connectAttr(dist_femurKneeCtl_Db+'.distance', l_knee_lock_bc+'.color1R')
+        cmds.connectAttr(dist_kneeCtlAnkle_Db+'.distance', l_ankle_lock_bc+'.color1R')
+        # connect the Shaape controller to the blend
+        cmds.connectAttr(object+'Shape.lock', l_knee_lock_bc+'.blender')
+        cmds.connectAttr(object+'Shape.lock', l_ankle_lock_bc+'.blender')
+        # connect the stretcj_cnd to the joints translateX
+        cmds.connectAttr(l_knee_lock_bc+'.outputR', "L_Ik_knee_jnt.translateX")
+        cmds.connectAttr(l_ankle_lock_bc+'.outputR', "L_Ik_ankle_jnt.translateX")
+        
+
+
+
     
