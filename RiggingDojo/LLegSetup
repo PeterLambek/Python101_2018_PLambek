@@ -597,8 +597,13 @@ class l_leg_setup():
         cmds.setAttr(ik_knee_ctl+'.visibility', keyable=False, ch=False, lock=True)
         # delete history on the ik control
         cmds.delete(ik_foot_ctl, ch=True)
-        # add the attribute for space switch
-        
+        # create Annotate for the Ik knee
+        l_knee_anno = cmds.annotate('L_Ik_knee_Ctl', tx='', p=(0, 0, 0))
+        l_Ik_knee_Ann = cmds.rename('annotation1', "L_Ik_knee_Ann")
+        cmds.parent(l_Ik_knee_Ann, "annotate_Grp")
+        cmds.parentConstraint("L_Ik_knee_jnt", l_Ik_knee_Ann)
+        cmds.setAttr(l_Ik_knee_Ann+'Shape.overrideEnabled', 1)
+        cmds.setAttr(l_Ik_knee_Ann+'Shape.overrideDisplayType', 2)        
         # place them in the group hierarchy if there is one
         placeInGroup = cmds.ls('main_Grp')
         # if it is there parent them respectly
