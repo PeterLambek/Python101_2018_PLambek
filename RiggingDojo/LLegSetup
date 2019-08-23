@@ -5,7 +5,7 @@ from PySide2 import QtWidgets, QtCore, QtGui
 
 # create first the joints - shoulder, knee, wrist, wristEnd (no need for naming)
 # selection to a variable
-"""
+
 L_Leg_Setup=l_leg_setup()
 L_Leg_Setup.L_bind_leg()
 
