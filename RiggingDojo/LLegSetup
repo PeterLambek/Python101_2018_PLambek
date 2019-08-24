@@ -5,7 +5,7 @@ from PySide2 import QtWidgets, QtCore, QtGui
 
 # create first the joints - shoulder, knee, wrist, wristEnd (no need for naming)
 # selection to a variable
-
+"""
 L_Leg_Setup=l_leg_setup()
 L_Leg_Setup.L_bind_leg()
 
@@ -991,28 +991,28 @@ class l_leg_setup():
             print "this has a connection"
             return
         else:
-            cmds.connectAttr('L_femur_Pb.weight', 'info_Grp.lFemurPairBlendWeight', f=True)
+            cmds.connectAttr('info_Grp.lFemurPairBlendWeight', 'L_femur_Pb.weight', f=True)
         # knee connection
         knee_weight = cmds.listConnections('info_Grp.lKneePairBlendWeight')
         if knee_weight:
             print "this has a connection"
             return
         else:
-            cmds.connectAttr('L_knee_Pb.weight', 'info_Grp.lKneePairBlendWeight', f=True)
+            cmds.connectAttr('info_Grp.lKneePairBlendWeight', 'L_knee_Pb.weight', f=True)
         # ankle connection
         ankle_weight = cmds.listConnections('info_Grp.lAnklePairBlendWeight')
         if ankle_weight:
             print "this has a connection"
             return
         else:
-            cmds.connectAttr('L_ankle_Pb.weight', 'info_Grp.lAnklePairBlendWeight', f=True)
+            cmds.connectAttr('info_Grp.lAnklePairBlendWeight', 'L_ankle_Pb.weight', f=True)
         # ball connection
         ball_weight = cmds.listConnections('info_Grp.lBallPairBlendWeight')
         if ball_weight:
             print "this has a connection"
             return
         else:
-            cmds.connectAttr('L_ball_Pb.weight', 'info_Grp.lBallPairBlendWeight', f=True)
+            cmds.connectAttr('info_Grp.lBallPairBlendWeight', 'L_ball_Pb.weight', f=True)
 
     def L_connectIk_leg(self):
         # create or find 3 pairblend node to switch between ik and fk
@@ -1098,28 +1098,28 @@ class l_leg_setup():
             print "this has a connection"
             return
         else:
-            cmds.connectAttr('L_femur_Pb.weight', 'info_Grp.lFemurPairBlendWeight', f=True)
+            cmds.connectAttr('info_Grp.lFemurPairBlendWeight', 'L_femur_Pb.weight', f=True)
             # knee connection
         knee_weight = cmds.listConnections('info_Grp.lKneePairBlendWeight')
         if knee_weight:
             print "this has a connection"
             return
         else:
-            cmds.connectAttr('L_knee_Pb.weight', 'info_Grp.lKneePairBlendWeight', f=True)
+            cmds.connectAttr('info_Grp.lKneePairBlendWeight','L_knee_Pb.weight',  f=True)
         # ankle connection
         ankle_weight = cmds.listConnections('info_Grp.lAnklePairBlendWeight')
         if ankle_weight:
             print "this has a connection"
             return
         else:
-            cmds.connectAttr('L_ankle_Pb.weight', 'info_Grp.lAnklePairBlendWeight', f=True)
+            cmds.connectAttr('info_Grp.lAnklePairBlendWeight', 'L_ankle_Pb.weight', f=True)
         # ball connection
         ball_weight = cmds.listConnections('info_Grp.lBallPairBlendWeight')
         if ball_weight:
             print "this has a connection"
             return
         else:
-            cmds.connectAttr('L_ball_Pb.weight', 'info_Grp.lBallPairBlendWeight', f=True)
+            cmds.connectAttr( 'info_Grp.lBallPairBlendWeight', 'L_ball_Pb.weight', f=True)
 
     # L_leg_stretch('L_leg_IkFkSwitch_Ctl')
 
